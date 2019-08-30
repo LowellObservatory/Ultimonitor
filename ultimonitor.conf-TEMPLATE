@@ -1,0 +1,21 @@
+[printerSetup]
+ip = ip.or.hostname
+apiid = 8675309
+apikey = 867530986753098675309
+
+[email]
+smtpserver = ip.or.hostname
+fromaddr = printzini@address.domain
+statusemail = email@address.domain
+
+[picam]
+# resolution = [2592, 1944]
+# resolution = [1296, 972]
+resolution = [864, 648]
+flipv = False
+fliph = False
+drc_strength = 'high'
+exposure_mode = 'night'
+meter_mode = 'matrix'
+exposure_compensation = 25
+image_denoise = False
