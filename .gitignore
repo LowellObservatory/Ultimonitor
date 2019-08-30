@@ -12,6 +12,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Stupid OS X shit
+.DS_Store
+
 # Distribution / packaging
 .Python
 env/
@@ -64,6 +67,9 @@ docs/build/
 
 # PyBuilder
 target/
+
+# No vscode
+.vscode
 
 # Don't track the actual, real stuff like passwords and hostnames
 *.conf
