@@ -7,4 +7,6 @@ A job/print monitor for the Ultimaker 3 Extended (or any printer supporting that
 - picamera
 - xmltodict
 - numpy
+- matplotlib
 - ligmos
+- ?
