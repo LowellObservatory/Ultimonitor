@@ -158,12 +158,12 @@ def formatStatus(stats):
                 else:
                     retStr += "\t%s: %s\n" % (key, stats[sect][key])
         elif isinstance(stats[sect], str):
+            retStr += "\t%s: %s\n" % (sect, stats[sect])
+        elif isinstance(stats[sect], float):
             if sect == "CalculationTime":
                 retStr += "%s: %.3f C\n\n" % (sect, stats[sect])
             else:
-                retStr += "\t%s: %s\n" % (sect, stats[sect])
-        elif isinstance(stats[sect], float):
-            retStr += "\t%s: %f\n" % (sect, stats[sect])
+                retStr += "\t%s: %f\n" % (sect, stats[sect])
 
     return retStr
 
