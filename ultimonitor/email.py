@@ -28,9 +28,11 @@ def sendMail(message, smtploc='localhost', port=25):
 
     print("Sending email...")
 
+    # TODO: catch the right timeout exception here
     with smtplib.SMTP(smtploc, port, timeout=10.) as server:
         server.send_message(message)
 
+    print(message)
     print("Email sent!")
 
 
