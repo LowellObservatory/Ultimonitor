@@ -155,6 +155,8 @@ def formatStatus(stats):
                              'Extruder1Temp', 'Extruder1Setp',
                              'Extruder2Temp', 'Extruder2Setp']:
                     retStr += "\t%s: %.3f C\n" % (key, stats[sect][key])
+                elif key == 'CalculationTime':
+                    retStr += "%s: %.3f C\n\n" % (key, stats[sect][key])
                 else:
                     retStr += "\t%s: %s\n" % (key, stats[sect][key])
         elif isinstance(stats[sect], str):
