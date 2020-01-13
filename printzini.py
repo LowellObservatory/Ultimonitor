@@ -35,6 +35,9 @@ if __name__ == "__main__":
     fromaddr = pConf['email']['fromaddr']
     statusemail = pConf['email']['statusemail']
 
+    # A quick way to disable email alerts; should put this in the config?
+    emailSquasher = False
+
     # This provides a map between the colors defined above and the
     #   actual values that the Ulimaker 3 Extended may return while printing
     #   or just in general. If printing, the printing status is used, but
@@ -55,8 +58,9 @@ if __name__ == "__main__":
     # Default sleep interval of 1 minute
     interval = 1.*60.
 
-    # A blank job to compare against
+    # Initial parameters to compare against
     pJob = {"JobParameters": {"UUID": 8675309}}
+    prevProg = -9999
 
     while True:
         # Do a check of everything we care about
@@ -116,67 +120,43 @@ if __name__ == "__main__":
             #   to be > 0.5 so the extruders and bed should already
             #   be self-regulating, but if it takes < 1 minute to get
             #   to this percentage complete, they'll still have big
-            #   deviations
+            #   deviations. Oh well.
+            msg = None
+            noteKey = None
+            emailFlag = False
             if curProg > 0.5 and curProg < 100.:
                 retTemps = printer.tempStats(printerip)
                 tstats, dstats = printer.collapseStats(retTemps, tstats)
                 tempPerformance = printer.formatStatus(dstats)
 
                 # Decision tree time!
-                msg = None
                 if curProg >= 0. and notices['start'] is False:
                     print("Notify that the print is started")
-                    notices['start'] = True
-                    msg = email.makeEmailUpdate('start',
-                                                curJobID,
-                                                curJobName,
-                                                strStatus,
-                                                fromaddr, statusemail)
-                    email.sendMail(msg, smtploc=smtpserver)
+                    noteKey = 'start'
+                    emailFlag = True
 
                 elif curProg >= 10. and notices['done10'] is False:
                     print("Notify that the print is 10%% done")
-                    notices['done10'] = True
-                    msg = email.makeEmailUpdate('done10',
-                                                curJobID,
-                                                curJobName,
-                                                tempPerformance,
-                                                fromaddr, statusemail)
-                    email.sendMail(msg, smtploc=smtpserver)
+                    noteKey = 'done10'
+                    emailFlag = True
 
                 elif curProg >= 50. and notices['done50'] is False:
                     print("Notify that the print is 50%% done")
-                    notices['done50'] = True
-                    msg = email.makeEmailUpdate('done50',
-                                                curJobID,
-                                                curJobName,
-                                                tempPerformance,
-                                                fromaddr, statusemail)
-                    email.sendMail(msg, smtploc=smtpserver)
+                    noteKey = 'done50'
+                    emailFlag = True
 
                 elif curProg >= 90. and notices['done90'] is False:
                     print("Notify that the print is 90%% done")
-                    notices['done90'] = True
-                    msg = email.makeEmailUpdate('done90',
-                                                curJobID,
-                                                curJobName,
-                                                tempPerformance,
-                                                fromaddr, statusemail)
-                    email.sendMail(msg, smtploc=smtpserver)
+                    noteKey = 'done90'
+                    emailFlag = True
 
             elif curProg == 100. and notices['end'] is False:
                 print("Notify that the print is done")
-                notices['end'] = True
+                noteKey = 'end'
+                emailFlag = True
+
                 # In addition to the temperature performance, add in the
                 #   print duration as well.
-                endStr = ""
-                msg = email.makeEmailUpdate('end',
-                                            curJobID,
-                                            curJobName,
-                                            tempPerformance,
-                                            fromaddr, statusemail)
-                email.sendMail(msg, smtploc=smtpserver)
-
                 print("Job %s is %f %% complete" %
                       (stats['JobParameters']['UUID'],
                        stats['JobParameters']['Progress']))
@@ -184,12 +164,25 @@ if __name__ == "__main__":
                 print("Temperature statistics:")
                 print(tempPerformance)
 
-            elif curProg == 100. and prevProg < 100.:
+            elif curProg == 100. and (prevProg == -9999 or prevProg == 100.):
                 # This means when we started, the print was already done!
                 #   Don't do anything in this case.
                 print("Job %s is 100%% complete already..." %
                       (stats['JobParameters']['UUID']), end='')
                 print("Awaiting job cleanup.")
+
+            # Now check the states that we could have gotten into by the above
+            if noteKey is not None:
+                notices[noteKey] = True
+                if emailFlag is True and emailSquasher is False:
+                    msg = email.makeEmailUpdate(noteKey,
+                                                curJobID,
+                                                curJobName,
+                                                strStatus,
+                                                fromaddr, statusemail,
+                                                picam=None,
+                                                ulticam=printerip)
+                    email.sendMail(msg, smtploc=smtpserver)
 
             # Need this to set the LED color appropriately
             actualStatus = stats['JobParameters']['JobState']
