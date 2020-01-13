@@ -161,7 +161,7 @@ def formatStatus(stats):
             retStr += "\t%s: %s\n" % (sect, stats[sect])
         elif isinstance(stats[sect], float):
             if sect == "CalculationTime":
-                retStr += "%s: %.3f C\n\n" % (sect, stats[sect])
+                retStr += "%s: %.3f min \n\n" % (sect, stats[sect]/60.)
             else:
                 retStr += "\t%s: %f\n" % (sect, stats[sect])
 
