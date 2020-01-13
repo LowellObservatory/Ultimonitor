@@ -185,6 +185,7 @@ if __name__ == "__main__":
             # Now check the states that we could have gotten into by the above
             if noteKey is not None:
                 notices[noteKey] = True
+                print(deets)
                 if emailFlag is True and emailSquasher is False:
                     print(noteKey)
                     print(notices[noteKey])
