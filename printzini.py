@@ -35,6 +35,13 @@ if __name__ == "__main__":
     fromaddr = pConf['email']['fromaddr']
     statusemail = pConf['email']['statusemail']
 
+    # Read in the footer file as a text string
+    try:
+        with open(pConf['email']['footer'], 'r') as f:
+            footer = f.read()
+    except (OSError, IOError):
+        footer = None
+
     # A quick way to disable email alerts; should put this in the config?
     emailSquasher = False
 
@@ -181,16 +188,24 @@ if __name__ == "__main__":
                                                 strStatus,
                                                 fromaddr, statusemail,
                                                 picam=None,
-                                                ulticam=printerip)
+                                                ulticam=printerip,
+                                                footer=footer)
                     email.sendMail(msg, smtploc=smtpserver)
 
             # Need this to set the LED color appropriately
             actualStatus = stats['JobParameters']['JobState']
         else:
+            # I forget what this is for?  I think a default/initial
+            #   state so the ledCheck below doesn't screw up?
             actualStatus = stats['Status']
+
+        # Update the progress
+        print("Previous Progress: ", prevProg)
+        print("Current Progress: ", curProg)
+        prevProg = curProg
 
         leds.ledCheck(apiid, apikey, printerip, hsvCols,
                       statusColors, actualStatus)
 
-        # print("Sleeping for %f seconds..." % (interval))
+        print("Sleeping for %f seconds..." % (interval))
         time.sleep(interval)

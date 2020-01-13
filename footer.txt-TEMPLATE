@@ -1,0 +1,5 @@
+To monitor or cancel this print, head to this printer's management interface:
+    http://<ultimaker IP here>/print_jobs
+
+You can also see the last 24 images from the downward facing camera at:
+    <separate monitoring page url here>

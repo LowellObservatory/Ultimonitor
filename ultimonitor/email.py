@@ -54,13 +54,13 @@ def constructMail(subject, body, fromaddr, toaddr):
 
 
 def makeEmailUpdate(etype, jobid, jobname, strStat, fromaddr, toaddr,
-                    picam=None, ulticam=None):
+                    picam=None, ulticam=None, footer=None):
     """
     """
-    # First make the standard footer that is on every email
-    footer = "To monitor this print, check out the view available at"
-    footer += " this printer's built-in website:"
-    footer += " http://lig3d-um3e.lowell.edu/print_jobs"
+    # First make sure we have at least a null string for the
+    #   standard footer that is included with every email
+    if footer is None:
+        footer = ""
 
     if etype == "start":
         subject = "Print job '%s' (%s) started!" % (jobname, jobid)
@@ -73,15 +73,15 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, fromaddr, toaddr,
         body += "  I'm not smart enough to know if it's *actually* going"
         body += " ok though, so you should probably check for any adhesion"
         body += " or stringing problems!"
-        body += "\nHere are the latest on temperature performance:"
+        body += "\nHere is the latest on temperature performance:"
     elif etype == "done50":
         subject = "Print job '%s' (%s) 50%% complete!" % (jobname, jobid)
         body = "Hello again! Congratulations on getting this far!"
-        body += "\nHere are the latest on temperature performance:"
+        body += "\nHere is the latest on temperature performance:"
     elif etype == "done90":
         subject = "Print job '%s' (%s) 90%% complete!" % (jobname, jobid)
         body = "Hello again! Wow! It's almost done!"
-        body += "\nHere are the latest on temperature performance:"
+        body += "\nHere is the latest on temperature performance:"
     elif etype == 'end':
         subject = "Print job '%s' (%s) 100%% complete!" % (jobname, jobid)
         body = "Hello again! It's complete! Please come fetch your print!"
