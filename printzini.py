@@ -46,7 +46,6 @@ if __name__ == "__main__":
                     "paused": "CadmiumYellow",
                     "resuming": "IndianYellow",
                     "pre_print": "SapGreen",
-                    # "pre_print": "PhthaloGreen",
                     "post_print": "BrightBlue",
                     "wait_cleanup": "BrightGreen",
                     "error": "BrightRed",
@@ -70,6 +69,7 @@ if __name__ == "__main__":
                 print("New job found!")
 
                 # Clear our temperature stats
+                #   I know, I know, this sucks. This is a prototype!
                 tstats = {"Temperature0": {"median": [],
                                            "stddev": [],
                                            "deltaavg": [],
@@ -164,21 +164,18 @@ if __name__ == "__main__":
                                                 fromaddr, statusemail)
                     email.sendMail(msg, smtploc=smtpserver)
 
-                # NOTE
-                # THIS WILL NEVER OCCUR AS WRITTEN!
-                # FIX ASAP
-                elif curProg == 100. and notices['end'] is False:
-                    print("Notify that the print is done")
-                    notices['end'] = True
-                    # In addition to the temperature performance, add in the
-                    #   print duration as well.
-                    endStr = ""
-                    msg = email.makeEmailUpdate('end',
-                                                curJobID,
-                                                curJobName,
-                                                tempPerformance,
-                                                fromaddr, statusemail)
-                    email.sendMail(msg, smtploc=smtpserver)
+            elif curProg == 100. and notices['end'] is False:
+                print("Notify that the print is done")
+                notices['end'] = True
+                # In addition to the temperature performance, add in the
+                #   print duration as well.
+                endStr = ""
+                msg = email.makeEmailUpdate('end',
+                                            curJobID,
+                                            curJobName,
+                                            tempPerformance,
+                                            fromaddr, statusemail)
+                email.sendMail(msg, smtploc=smtpserver)
 
                 print("Job %s is %f %% complete" %
                       (stats['JobParameters']['UUID'],
@@ -186,7 +183,8 @@ if __name__ == "__main__":
                 print("State: %s" % (stats['JobParameters']['JobState']))
                 print("Temperature statistics:")
                 print(tempPerformance)
-            elif curProg == 100.:
+
+            elif curProg == 100. and prevProg < 100.:
                 # This means when we started, the print was already done!
                 #   Don't do anything in this case.
                 print("Job %s is 100%% complete already..." %
