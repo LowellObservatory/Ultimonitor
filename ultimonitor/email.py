@@ -28,8 +28,10 @@ def sendMail(message, smtploc='localhost', port=25):
 
     print("Sending email...")
 
-    with smtplib.SMTP(smtploc, port) as server:
+    with smtplib.SMTP(smtploc, port, timeout=10.) as server:
         server.send_message(message)
+
+    print("Email sent!")
 
 
 def constructMail(subject, body, fromaddr, toaddr):
