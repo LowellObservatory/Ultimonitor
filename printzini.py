@@ -182,6 +182,9 @@ if __name__ == "__main__":
             if noteKey is not None:
                 notices[noteKey] = True
                 if emailFlag is True and emailSquasher is False:
+                    print(noteKey)
+                    print(notices[noteKey])
+                    print(notices)
                     msg = email.makeEmailUpdate(noteKey,
                                                 curJobID,
                                                 curJobName,
