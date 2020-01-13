@@ -58,9 +58,13 @@ def pallettBobRoss():
         # Should consider doing a quick gamma correction on these at some
         #   point in the future...but for now, just knock down the
         #   precision so we don't chase our tail due to rounding
+
+        # A fudge factor to appease the GODO. >= 1 otherwise it'll brighten
+        ledGODO = 2.5
+
         colHSV = {"hue": round(colHSV[0]*360., 5),
                   "saturation": round(colHSV[1]*100., 5),
-                  "brightness": round(colHSV[2]*100., 5)}
+                  "brightness": round(colHSV[2]*100./ledGODO, 5)}
 
         # print(color, colRGB, colHSV)
         hsvHappyColors.update({color: colHSV})
