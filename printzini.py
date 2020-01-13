@@ -173,7 +173,7 @@ if __name__ == "__main__":
                        stats['JobParameters']['Progress']))
                 print("State: %s" % (stats['JobParameters']['JobState']))
                 print("Temperature statistics:")
-                print(tempPerformance)
+                print(deets)
 
             elif curProg == 100. and (prevProg == -9999 or prevProg == 100.):
                 # This means when we started, the print was already done!
