@@ -134,13 +134,17 @@ if __name__ == "__main__":
             if curProg > 0.5 and curProg < 100.:
                 retTemps = printer.tempStats(printerip)
                 tstats, dstats = printer.collapseStats(retTemps, tstats)
-                tempPerformance = printer.formatStatus(dstats)
+                deets = printer.formatStatus(dstats)
 
                 # Decision tree time!
                 if curProg >= 0. and notices['start'] is False:
                     print("Notify that the print is started")
                     noteKey = 'start'
                     emailFlag = True
+                    # The first time thru gets a more detailed header, that
+                    #   we actually already set above. We're just overriding
+                    #   the shortened version here
+                    deets = strStatus
 
                 elif curProg >= 10. and notices['done10'] is False:
                     print("Notify that the print is 10%% done")
@@ -188,7 +192,7 @@ if __name__ == "__main__":
                     msg = email.makeEmailUpdate(noteKey,
                                                 curJobID,
                                                 curJobName,
-                                                strStatus,
+                                                deets,
                                                 fromaddr, statusemail,
                                                 picam=None,
                                                 ulticam=printerip,
