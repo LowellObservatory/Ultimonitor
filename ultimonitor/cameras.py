@@ -70,8 +70,10 @@ def piCamInit(camSettings):
         #   this first before anything else
         camera.framerate_range = (Fraction(1, 10), Fraction(30, 1))
 
-        camera.resolution = (camSettings.resolution[0],
-                             camSettings.resolution[1])
+        # Need to make sure these are integers since they're parsed in
+        #   from a configuration file and are probably strings
+        camera.resolution = (int(camSettings.resolution[0]),
+                             int(camSettings.resolution[1]))
         camera.vflip = camSettings.flipv
         camera.hflip = camSettings.fliph
 
