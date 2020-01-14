@@ -155,15 +155,14 @@ if __name__ == "__main__":
                       (stats['JobParameters']['UUID'],
                        stats['JobParameters']['Progress']))
                 print("State: %s" % (stats['JobParameters']['JobState']))
-                print("Temperature statistics:")
-                print(deets)
 
-            elif curProg == 100. and (prevProg == -9999 or prevProg == 100.):
-                # This means when we started, the print was already done!
-                #   Don't do anything in this case.
-                print("Job %s is 100%% complete already..." %
-                      (stats['JobParameters']['UUID']), end='')
-                print("Awaiting job cleanup.")
+                if prevProg == -9999 or prevProg == 100.:
+                    # This means when we started, the print was already done!
+                    #   Don't do anything in this case.
+                    print("Job %s is 100%% complete already..." %
+                          (stats['JobParameters']['UUID']), end='')
+                    print("Awaiting job cleanup.")
+                    emailFlag = False
 
             # Now check the states that we could have gotten into by the above
             if noteKey is not None:
