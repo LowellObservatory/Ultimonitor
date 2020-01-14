@@ -107,7 +107,7 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
     # Now grab and attach the images, if they were requested
     if ulticam is not None:
         # It's really just an http GET request so it's easy
-        img = cameras.grab_ultimaker(ulticam)
+        img = cameras.grab_ultimaker(ulticam.ip)
         if img is not None:
             # Attach it to the message
             msg.add_attachment(img.content, maintype='image',

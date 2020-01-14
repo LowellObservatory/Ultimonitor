@@ -181,8 +181,8 @@ if __name__ == "__main__":
                                                 curJobID,
                                                 curJobName,
                                                 deets, cDict['email'],
-                                                picam=None,
-                                                ulticam=cDict['printer'].ip)
+                                                picam=cDict['rpicamera'],
+                                                ulticam=cDict['printer'])
                     email.sendMail(msg, smtploc=cDict['email'].smtpserver)
 
             # Need this to set the LED color appropriately
