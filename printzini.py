@@ -164,6 +164,10 @@ if __name__ == "__main__":
                     print("Awaiting job cleanup.")
                     emailFlag = False
 
+                # This state also means that we have no temp. statistics
+                #   to report, so set the details string empty
+                deets = ""
+
             # Now check the states that we could have gotten into by the above
             if noteKey is not None:
                 notices[noteKey] = True
