@@ -96,16 +96,26 @@ def piCamInit(camSettings):
     return camera
 
 
-def piCamCapture(camSettings, debug=False):
+def piCamCapture(camSettings, debug=False, retries=10):
     now = dt.utcnow()
     nowstr = now.strftime("%Y%m%d_%H%M%S")
     print("Starting capture at %s" % (nowstr))
 
-    # Init the camera
-    try:
-        camera = piCamInit(camSettings)
-    except picamera.exc.PiCameraMMALError:
-        print("Camera is likely busy! Try again later.")
+    # Init the camera. Try a few times if it's busy
+    retryCounter = 0
+    intervalRetries = 10
+    snapname = None
+
+    # This allows for a number of retries, in case another process
+    #   is using the camera and isn't immediately available.
+    while snapname is None and retryCounter < retries:
+        try:
+            camera = piCamInit(camSettings)
+        except picamera.exc.PiCameraMMALError:
+            print("Camera is likely busy! Try again later.")
+            retryCounter += 1
+            print("%d retries remain." % (retries - retryCounter))
+            sleep(intervalRetries)
 
     if camera is not None:
         outname = "./%s.png" % (nowstr)

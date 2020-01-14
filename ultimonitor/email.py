@@ -13,7 +13,6 @@
 
 from __future__ import division, print_function, absolute_import
 
-import time
 import imghdr
 import smtplib
 from email.message import EmailMessage
@@ -115,26 +114,16 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
                                subtype=imghdr.what(None, img.content),
                                filename="UltimakerSideView.jpg")
 
-    retryCounter = 0
-    retriesMax = 9
-    intervalRetries = 10
-    snapname = None
-
     if picam is True:
-        # This allows for a number of retries, in case another process
-        #   is using the camera and isn't immediately available.
-        while snapname is None and retryCounter < retriesMax:
-            snapname = cameras.piCamCapture(picam)
-            retryCounter += 1
-            time.sleep(intervalRetries)
+        snapname = cameras.piCamCapture(picam)
 
-    if snapname is not None:
-        with open(snapname, 'rb') as pisnap:
-            piimg = pisnap.read()
-            msg.add_attachment(piimg, maintype='image',
-                               subtype=imghdr.what(None, piimg),
-                               filename="UltimakerTopView.png")
-    else:
-        print("PiCamera capture failed! %d retries remaining")
+        if snapname is not None:
+            with open(snapname, 'rb') as pisnap:
+                piimg = pisnap.read()
+                msg.add_attachment(piimg, maintype='image',
+                                   subtype=imghdr.what(None, piimg),
+                                   filename="UltimakerTopView.png")
+        else:
+            print("PiCamera capture failed!")
 
     return msg
