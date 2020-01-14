@@ -72,8 +72,8 @@ def piCamInit(camSettings):
 
         # Need to make sure these are integers since they're parsed in
         #   from a configuration file and are probably strings
-        camera.resolution = (int(camSettings.resolution[0]),
-                             int(camSettings.resolution[1]))
+        camera.resolution = (int(camSettings.resolution[0][1:]),
+                             int(camSettings.resolution[1][:-1]))
         camera.vflip = camSettings.flipv
         camera.hflip = camSettings.fliph
 
