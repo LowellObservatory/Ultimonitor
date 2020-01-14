@@ -60,7 +60,6 @@ def grab_ultimaker(printerip):
 
 def piCamInit(camSettings):
     if picamera is not None and camSettings is not None:
-        print(camSettings)
         picamera.PiCamera.CAPTURE_TIMEOUT = 60
 
         # https://picamera.readthedocs.io/en/latest/fov.html#camera-modes
@@ -81,7 +80,8 @@ def piCamInit(camSettings):
         camera.drc_strength = camSettings.drc_strength
         camera.exposure_mode = camSettings.exposure_mode
         camera.meter_mode = camSettings.meter_mode
-        camera.exposure_compensation = camSettings.exposure_compensation
+        # Same as resolution above - this needs to be an int!
+        camera.exposure_compensation = int(camSettings.exposure_compensation)
         camera.image_denoise = camSettings.image_denoise
 
         print("Allowing camera to reticulate some splines...")
