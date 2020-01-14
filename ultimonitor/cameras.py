@@ -104,11 +104,11 @@ def piCamCapture(camSettings, debug=False, retries=10):
     # Init the camera. Try a few times if it's busy
     retryCounter = 0
     intervalRetries = 10
-    snapname = None
+    camera = None
 
     # This allows for a number of retries, in case another process
     #   is using the camera and isn't immediately available.
-    while snapname is None and retryCounter < retries:
+    while camera is None and retryCounter < retries:
         try:
             camera = piCamInit(camSettings)
         except picamera.exc.PiCameraMMALError:
