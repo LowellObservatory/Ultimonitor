@@ -59,7 +59,8 @@ def grab_ultimaker(printerip):
 
 
 def piCamInit(camSettings):
-    if picamera is not None:
+    if picamera is not None and camSettings is not None:
+        print(camSettings)
         picamera.PiCamera.CAPTURE_TIMEOUT = 60
 
         # https://picamera.readthedocs.io/en/latest/fov.html#camera-modes
