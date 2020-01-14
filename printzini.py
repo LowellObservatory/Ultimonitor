@@ -161,7 +161,8 @@ if __name__ == "__main__":
                     #   Don't do anything in this case.
                     print("Job %s is 100%% complete already..." %
                           (stats['JobParameters']['UUID']), end='')
-                    print("Awaiting job cleanup.")
+                    print("Awaiting job cleanup...")
+                    print("Skipping notification for job completion")
                     emailFlag = False
 
                 # This state also means that we have no temp. statistics
