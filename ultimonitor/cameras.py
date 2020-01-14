@@ -102,7 +102,10 @@ def piCamCapture(camSettings, debug=False):
     print("Starting capture at %s" % (nowstr))
 
     # Init the camera
-    camera = piCamInit(camSettings)
+    try:
+        camera = piCamInit(camSettings)
+    except picamera.exc.PiCameraMMALError:
+        print("Camera is likely busy! Try again later.")
 
     if camera is not None:
         outname = "./%s.png" % (nowstr)
