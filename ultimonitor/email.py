@@ -55,14 +55,16 @@ def constructMail(subject, body, fromaddr, toaddr):
     return msg
 
 
-def makeEmailUpdate(etype, jobid, jobname, strStat, fromaddr, toaddr,
-                    picam=None, ulticam=None, footer=None):
+def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
+                    picam=None, ulticam=None):
     """
     """
     # First make sure we have at least a null string for the
     #   standard footer that is included with every email
-    if footer is None:
+    if emailConfig.footer is None:
         footer = ""
+    else:
+        footer = str(emailConfig.footer)
 
     if etype == "start":
         subject = "Print job '%s' (%s) started!" % (jobname, jobid)
@@ -99,7 +101,8 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, fromaddr, toaddr,
     body += footer
     body += "\n\nYour 3D pal, \nThe Great Printzini"
 
-    msg = constructMail(subject, body, fromaddr, toaddr)
+    msg = constructMail(subject, body,
+                        emailConfig.fromaddr, emailConfig.toaddr)
 
     # Now grab and attach the images, if they were requested
     if ulticam is not None:

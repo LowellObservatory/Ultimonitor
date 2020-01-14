@@ -16,6 +16,20 @@ Further description.
 from __future__ import division, print_function, absolute_import
 
 
+class emailSNMP(object):
+    def __init__(self):
+        self.smtpserver = None
+        self.fromaddr = None
+        self.toaddr = None
+
+
+class ultimaker3e(object):
+    def __init__(self):
+        self.ip = None
+        self.apiid = None
+        self.apikey = None
+
+
 class piCamSettings(object):
     def __init__(self):
         # Suitable for darker environments

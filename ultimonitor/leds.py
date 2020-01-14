@@ -72,11 +72,11 @@ def pallettBobRoss():
     return hsvHappyColors
 
 
-def ledCheck(apiid, apikey, printerip, hsvColors, statusColors, statusStr):
+def ledCheck(printerConfig, hsvColors, statusColors, statusStr):
     """
     """
     # Checking/setting status LED colors
-    actualLED = api.queryChecker(printerip, "printer/led")
+    actualLED = api.queryChecker(printerConfig.ip, "printer/led")
     desiredLED = hsvColors[statusColors[statusStr]]
 
     ledChange = False
@@ -94,4 +94,6 @@ def ledCheck(apiid, apikey, printerip, hsvColors, statusColors, statusStr):
                 break
 
     if ledChange is True:
-        api.setProperty(apiid, apikey, printerip, "printer/led", desiredLED)
+        api.setProperty(printerConfig.apiid,
+                        printerConfig.apikey,
+                        printerConfig.ip, "printer/led", desiredLED)

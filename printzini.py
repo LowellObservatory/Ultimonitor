@@ -18,29 +18,12 @@ from __future__ import division, print_function, absolute_import
 
 import time
 
-from ligmos.utils import confparsers
-from ultimonitor import printer, email, leds
+from ultimonitor import confparser, printer, email, leds
 
 
 if __name__ == "__main__":
     conffile = 'ultimonitor.conf'
-    pConf = confparsers.rawParser(conffile)
-
-    # Some renames
-    apiid = pConf['printerSetup']['apiid']
-    apikey = pConf['printerSetup']['apikey']
-    printerip = pConf['printerSetup']['ip']
-
-    smtpserver = pConf['email']['smtpserver']
-    fromaddr = pConf['email']['fromaddr']
-    statusemail = pConf['email']['statusemail']
-
-    # Read in the footer file as a text string
-    try:
-        with open(pConf['email']['footer'], 'r') as f:
-            footer = f.read()
-    except (OSError, IOError):
-        footer = None
+    cDict = confparser.parseConf(conffile)
 
     # A quick way to disable email alerts; should put this in the config?
     emailSquasher = False
@@ -71,7 +54,7 @@ if __name__ == "__main__":
 
     while True:
         # Do a check of everything we care about
-        stats = printer.statusCheck(printerip)
+        stats = printer.statusCheck(cDict['printer'].ip)
 
         # Is there an active print job?
         if stats['Status'] == 'printing':
@@ -132,7 +115,7 @@ if __name__ == "__main__":
             noteKey = None
             emailFlag = False
             if curProg > 0.5 and curProg < 100.:
-                retTemps = printer.tempStats(printerip)
+                retTemps = printer.tempStats(cDict['printer'].ip)
                 tstats, dstats = printer.collapseStats(retTemps, tstats)
                 deets = printer.formatStatus(dstats)
 
@@ -193,12 +176,10 @@ if __name__ == "__main__":
                     msg = email.makeEmailUpdate(noteKey,
                                                 curJobID,
                                                 curJobName,
-                                                deets,
-                                                fromaddr, statusemail,
+                                                deets, cDict['email'],
                                                 picam=None,
-                                                ulticam=printerip,
-                                                footer=footer)
-                    email.sendMail(msg, smtploc=smtpserver)
+                                                ulticam=cDict['printer'].ip)
+                    email.sendMail(msg, smtploc=cDict['email'].smtpserver)
 
             # Need this to set the LED color appropriately
             actualStatus = stats['JobParameters']['JobState']
@@ -212,7 +193,7 @@ if __name__ == "__main__":
         print("Current Progress: ", curProg)
         prevProg = curProg
 
-        leds.ledCheck(apiid, apikey, printerip, hsvCols,
+        leds.ledCheck(cDict['printer'], hsvCols,
                       statusColors, actualStatus)
 
         print("Sleeping for %f seconds..." % (interval))
