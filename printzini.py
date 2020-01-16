@@ -57,150 +57,164 @@ if __name__ == "__main__":
         # Do a check of everything we care about
         stats = printer.statusCheck(cDict['printer'].ip)
 
-        # Is there an active print job?
-        if stats['Status'] == 'printing':
-            # Is this the same job we saw last time in the loop?
-            if stats['JobParameters']['UUID'] != pJob['JobParameters']['UUID']:
-                print("New job found!")
+        # Did our status check work?
+        if stats != {}:
+            # Is there an active print job?
+            if stats['Status'] == 'printing':
+                # Is this the same job we saw last time in the loop?
+                if stats['JobParameters']['UUID'] != pJob['JobParameters']['UUID']:
+                    print("New job found!")
 
-                # Clear our temperature stats
-                #   I know, I know, this sucks. This is a prototype!
-                tstats = {"Temperature0": {"median": [],
-                                           "stddev": [],
-                                           "deltaavg": [],
-                                           "deltamin": [],
-                                           "deltamax": [],
-                                           "deltastd": []},
-                          "Temperature1": {"median": [],
-                                           "stddev": [],
-                                           "deltaavg": [],
-                                           "deltamin": [],
-                                           "deltamax": [],
-                                           "deltastd": []},
-                          "Bed": {"median": [],
-                                  "stddev": [],
-                                  "deltaavg": [],
-                                  "deltamin": [],
-                                  "deltamax": [],
-                                  "deltastd": []},
-                          "CalculationTime": 0.
-                          }
+                    # Clear our temperature stats
+                    #   I know, I know, this sucks. This is a prototype!
+                    tstats = {"Temperature0": {"median": [],
+                                               "stddev": [],
+                                               "deltaavg": [],
+                                               "deltamin": [],
+                                               "deltamax": [],
+                                               "deltastd": []},
+                              "Temperature1": {"median": [],
+                                               "stddev": [],
+                                               "deltaavg": [],
+                                               "deltamin": [],
+                                               "deltamax": [],
+                                               "deltastd": []},
+                              "Bed": {"median": [],
+                                      "stddev": [],
+                                      "deltaavg": [],
+                                      "deltamin": [],
+                                      "deltamax": [],
+                                      "deltastd": []},
+                              "CalculationTime": 0.
+                             }
 
-                # Print the status to the log, but also get a string
-                #   representation that can be sent via email
-                strStatus = printer.formatStatus(stats)
-                print(strStatus)
+                    # Print the status to the log, but also get a string
+                    #   representation that can be sent via email
+                    strStatus = printer.formatStatus(stats)
+                    print(strStatus)
 
-                # Set this job as the one to watch now
-                pJob = stats
+                    # Set this job as the one to watch now
+                    pJob = stats
 
-                # Notification trackers
-                notices = {"start": False,
-                           "done10": False,
-                           "done50": False,
-                           "done90": False,
-                           "end": False}
+                    # Notification trackers
+                    notices = {"start": False,
+                               "done10": False,
+                               "done50": False,
+                               "done90": False,
+                               "end": False}
 
-            curProg = stats['JobParameters']['Progress']
-            curJobName = stats['JobParameters']['Name']
-            # Just take the first part of the UUID so it's not so long...
-            curJobID = stats['JobParameters']['UUID'].split("-")[0]
+                curProg = stats['JobParameters']['Progress']
+                curJobName = stats['JobParameters']['Name']
+                # Just take the first part of the UUID so it's not so long...
+                curJobID = stats['JobParameters']['UUID'].split("-")[0]
 
-            # Collect the temperature statistics, but only bother if
-            #   we're actually in progress. I set the threshold
-            #   to be > 0.5 so the extruders and bed should already
-            #   be self-regulating, but if it takes < 1 minute to get
-            #   to this percentage complete, they'll still have big
-            #   deviations. Oh well.
-            msg = None
-            noteKey = None
-            emailFlag = False
-            if curProg > 0.5 and curProg < 100.:
-                retTemps = printer.tempStats(cDict['printer'].ip)
-                tstats, dstats = printer.collapseStats(retTemps, tstats)
-                deets = printer.formatStatus(dstats)
+                # Collect the temperature statistics, but only bother if
+                #   we're actually in progress. I set the threshold
+                #   to be > 0.5 so the extruders and bed should already
+                #   be self-regulating, but if it takes < 1 minute to get
+                #   to this percentage complete, they'll still have big
+                #   deviations. Oh well.
+                msg = None
+                noteKey = None
+                emailFlag = False
+                if curProg > 0.5 and curProg < 100.:
+                    retTemps = printer.tempStats(cDict['printer'].ip)
+                    if retTemps != {}:
+                        # Make sure the query didn't fail!
+                        tstats, dstats = printer.collapseStats(retTemps, tstats)
+                        deets = printer.formatStatus(dstats)
+                    else:
+                        deets = "Unfortunately, the printer was unavailable"
+                        deets += " when temperature statistics were queried."
+                        deets += "\n\nThat's probably not a good thing, but "
+                        deets += "it could just mean that the network "
+                        deets += "was interrupted unexpectedly. You should "
+                        deets += "probably check on the printer!"
 
-                # Decision tree time!
-                if curProg >= 0. and notices['start'] is False:
-                    print("Notify that the print is started")
-                    noteKey = 'start'
+                    # Decision tree time!
+                    if curProg >= 0. and notices['start'] is False:
+                        print("Notify that the print is started")
+                        noteKey = 'start'
+                        emailFlag = True
+                        # The first time thru gets a more detailed header, that
+                        #   we actually already set above. We're just overriding
+                        #   the shortened version here
+                        deets = strStatus
+
+                    elif curProg >= 10. and notices['done10'] is False:
+                        print("Notify that the print is 10%% done")
+                        noteKey = 'done10'
+                        emailFlag = True
+
+                    elif curProg >= 50. and notices['done50'] is False:
+                        print("Notify that the print is 50%% done")
+                        noteKey = 'done50'
+                        emailFlag = True
+
+                    elif curProg >= 90. and notices['done90'] is False:
+                        print("Notify that the print is 90%% done")
+                        noteKey = 'done90'
+                        emailFlag = True
+
+                elif curProg == 100. and notices['end'] is False:
+                    print("Notify that the print is done")
+                    noteKey = 'end'
                     emailFlag = True
-                    # The first time thru gets a more detailed header, that
-                    #   we actually already set above. We're just overriding
-                    #   the shortened version here
-                    deets = strStatus
 
-                elif curProg >= 10. and notices['done10'] is False:
-                    print("Notify that the print is 10%% done")
-                    noteKey = 'done10'
-                    emailFlag = True
+                    # In addition to the temperature performance, add in the
+                    #   print duration as well.
+                    print("Job %s is %f %% complete" %
+                          (stats['JobParameters']['UUID'],
+                           stats['JobParameters']['Progress']))
+                    print("State: %s" % (stats['JobParameters']['JobState']))
 
-                elif curProg >= 50. and notices['done50'] is False:
-                    print("Notify that the print is 50%% done")
-                    noteKey = 'done50'
-                    emailFlag = True
+                    if prevProg == -9999 or prevProg == 100.:
+                        # This means when we started, the print was done!
+                        #   Don't do anything in this case.
+                        print("Job %s is 100%% complete already..." %
+                              (stats['JobParameters']['UUID']), end='')
+                        print("Awaiting job cleanup...")
+                        print("Skipping notification for job completion")
+                        emailFlag = False
 
-                elif curProg >= 90. and notices['done90'] is False:
-                    print("Notify that the print is 90%% done")
-                    noteKey = 'done90'
-                    emailFlag = True
+                    # This state also means that we have no temp. statistics
+                    #   to report, so set the details string empty
+                    deets = ""
 
-            elif curProg == 100. and notices['end'] is False:
-                print("Notify that the print is done")
-                noteKey = 'end'
-                emailFlag = True
+                # Now check the states that we could have gotten into
+                if noteKey is not None:
+                    notices[noteKey] = True
+                    print(deets)
+                    if emailFlag is True and emailSquasher is False:
+                        print(noteKey)
+                        print(notices[noteKey])
+                        print(notices)
+                        msg = email.makeEmailUpdate(noteKey,
+                                                    curJobID,
+                                                    curJobName,
+                                                    deets, cDict['email'],
+                                                    picam=cDict['rpicamera'],
+                                                    ulticam=cDict['printer'])
+                        email.sendMail(msg, smtploc=cDict['email'].smtpserver)
 
-                # In addition to the temperature performance, add in the
-                #   print duration as well.
-                print("Job %s is %f %% complete" %
-                      (stats['JobParameters']['UUID'],
-                       stats['JobParameters']['Progress']))
-                print("State: %s" % (stats['JobParameters']['JobState']))
+                # Need this to set the LED color appropriately
+                actualStatus = stats['JobParameters']['JobState']
 
-                if prevProg == -9999 or prevProg == 100.:
-                    # This means when we started, the print was already done!
-                    #   Don't do anything in this case.
-                    print("Job %s is 100%% complete already..." %
-                          (stats['JobParameters']['UUID']), end='')
-                    print("Awaiting job cleanup...")
-                    print("Skipping notification for job completion")
-                    emailFlag = False
+                # Update the progress since we're printing
+                print("Previous Progress: ", prevProg)
+                print("Current Progress: ", curProg)
+                prevProg = curProg
 
-                # This state also means that we have no temp. statistics
-                #   to report, so set the details string empty
-                deets = ""
+            else:
+                # This is if we're not printing, the printer will have a
+                #   different status. Just store it so we can set LED
+                #   colors appropriately
+                actualStatus = stats['Status']
 
-            # Now check the states that we could have gotten into by the above
-            if noteKey is not None:
-                notices[noteKey] = True
-                print(deets)
-                if emailFlag is True and emailSquasher is False:
-                    print(noteKey)
-                    print(notices[noteKey])
-                    print(notices)
-                    msg = email.makeEmailUpdate(noteKey,
-                                                curJobID,
-                                                curJobName,
-                                                deets, cDict['email'],
-                                                picam=cDict['rpicamera'],
-                                                ulticam=cDict['printer'])
-                    email.sendMail(msg, smtploc=cDict['email'].smtpserver)
-
-            # Need this to set the LED color appropriately
-            actualStatus = stats['JobParameters']['JobState']
-
-            # Update the progress since we're printing
-            print("Previous Progress: ", prevProg)
-            print("Current Progress: ", curProg)
-            prevProg = curProg
+            leds.ledCheck(cDict['printer'], hsvCols,
+                          statusColors, actualStatus)
         else:
-            # This is if we're not printing, the printer will have ... wait
-            #   for it ... another/different status. Just store it and move on.
-            #   We need to record it to set the LED colors below, though.
-            actualStatus = stats['Status']
-
-        leds.ledCheck(cDict['printer'], hsvCols,
-                      statusColors, actualStatus)
+            print("PRINTER UNREACHABLE!")
 
         print("Sleeping for %f seconds..." % (interval))
         time.sleep(interval)

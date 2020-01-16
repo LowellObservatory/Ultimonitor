@@ -51,7 +51,7 @@ def setProperty(apiid, apikey, printerip, endpoint, vals, goodVal=204):
         print(rp)
 
 
-def queryChecker(printerip, endpoint, goodStatus=200, debug=False):
+def queryChecker(printerip, endpoint, goodStat=200, fill=None, debug=False):
     """
     """
     if printerip.startswith("http") is False:
@@ -73,9 +73,12 @@ def queryChecker(printerip, endpoint, goodStatus=200, debug=False):
             print(queryendpoint)
             print(req.status_code)
             print(req.content)
-        if req.status_code == goodStatus:
+        if req.status_code == goodStat:
             req = json.loads(req.content)
         else:
             req = {}
+
+    if req == {} and fill is not None:
+        req = fill
 
     return req

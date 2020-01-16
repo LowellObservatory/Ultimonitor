@@ -65,28 +65,36 @@ def statusCheck(printerip):
     """
     returnable = OrderedDict()
 
-    ptype = api.queryChecker(printerip, "system/variant")
-    pname = api.queryChecker(printerip, "system/name")
-    firmware = api.queryChecker(printerip, "system/firmware")
-    sysguid = api.queryChecker(printerip, "system/guid")
+    ptype = api.queryChecker(printerip, "system/variant", fill="UNKNOWN")
+    pname = api.queryChecker(printerip, "system/name", fill="UNKNOWN")
+    firmware = api.queryChecker(printerip, "system/firmware", fill="UNKNOWN")
+    sysguid = api.queryChecker(printerip, "system/guid", fill="UNKNOWN")
 
     returnable.update({"Printer": {"Type": ptype,
                                    "Name": pname,
                                    "SWVersion": firmware,
                                    "GUID": sysguid}})
 
-    status = api.queryChecker(printerip, "printer/status")
+    status = api.queryChecker(printerip, "printer/status", fill="UNKNOWN")
     returnable.update({"Status": status})
 
-    # We don't store this, but we pull lots of stuff out of it
+    # We don't store this, but we pull lots of stuff out of it. We treat it
+    #   slightly differently as the above since there are multiple values
+    #   to set to "UNKNOWN" in case the printer is unreachable
     headinfo = api.queryChecker(printerip, "printer/heads/0")
+    if headinfo != {}:
+        ext1 = headinfo['extruders'][0]['hotend']['id']
+        ext2 = headinfo['extruders'][1]['hotend']['id']
 
-    ext1 = headinfo['extruders'][0]['hotend']['id']
-    material1 = getMaterial(printerip, headinfo, extruder=0)
-    ext2 = headinfo['extruders'][1]['hotend']['id']
-    material2 = getMaterial(printerip, headinfo, extruder=1)
+        material1 = getMaterial(printerip, headinfo, extruder=0)
+        material2 = getMaterial(printerip, headinfo, extruder=1)
+    else:
+        ext1 = "UNKNOWN"
+        material1 = "UNKNOWN"
+        ext2 = "UNKNOWN"
+        material2 = "UNKNOWN"
 
-    bedtype = api.queryChecker(printerip, "printer/bed/type")
+    bedtype = api.queryChecker(printerip, "printer/bed/type", fill="UNKNOWN")
 
     returnable.update({"PrintSetup": {"Extruder1": ext1,
                                       "Material1": material1,
@@ -97,8 +105,11 @@ def statusCheck(printerip):
     if status == "printing":
         # Query some more!
         bedtemp = api.queryChecker(printerip, "printer/bed/temperature")
-        ext1temps = headinfo['extruders'][0]['hotend']['temperature']
-        ext2temps = headinfo['extruders'][1]['hotend']['temperature']
+        if bedtemp != {}:
+            ext1temps = headinfo['extruders'][0]['hotend']['temperature']
+            ext2temps = headinfo['extruders'][1]['hotend']['temperature']
+        else:
+            ext1temps = ""
         printjob = api.queryChecker(printerip, "print_job")
 
         jobname = printjob['name']
@@ -133,6 +144,7 @@ def statusCheck(printerip):
         # This is just a reminder; if it's not printing, then there
         #   will be *NO* JobParameters key in the dict!
         print("Not printing!")
+        print(status)
 
     return returnable
 
@@ -178,76 +190,84 @@ def tempStats(printerip):
     nsamps = 800
     endpoint = "/printer/diagnostics/temperature_flow/%d" % (nsamps)
 
+    # This query is a house of cards; if it fails because the printer
+    #   is unreachable, literally everything will implode. So check that
+    #   the return value isn't empty!!!
     tres = api.queryChecker(printerip, endpoint)
-    # These will likely always be the same so just hard code them so I don't
-    #   have to parse them out of the results above
-    flabs = ['Time',
-             'temperature0', 'target0', 'heater0',
-             'flow_sensor0', 'flow_steps0',
-             'temperature1', 'target1', 'heater1',
-             'flow_sensor1', 'flow_steps1',
-             'bed_temperature', 'bed_target', 'bed_heater',
-             'active_hotend_or_state']
 
-    # Quick and dirty list comprehension to set up our results dictionary
-    tdict = {}
-    [tdict.update({key: []}) for key in flabs]
+    if tres != {}:
+        # These will likely always be the same so just hard code them so I
+        #   don't have to parse them out of the results above
+        flabs = ['Time',
+                 'temperature0', 'target0', 'heater0',
+                 'flow_sensor0', 'flow_steps0',
+                 'temperature1', 'target1', 'heater1',
+                 'flow_sensor1', 'flow_steps1',
+                 'bed_temperature', 'bed_target', 'bed_heater',
+                 'active_hotend_or_state']
 
-    for points in tres[1:]:
-        for i, temp in enumerate(points):
-            tdict[flabs[i]].append(temp)
+        # Quick and dirty list comprehension to set up our results dictionary
+        tdict = {}
+        [tdict.update({key: []}) for key in flabs]
 
-    # Now collapse down some stats
-    trange = tdict['Time'][-1] - tdict['Time'][0]
+        for points in tres[1:]:
+            for i, temp in enumerate(points):
+                tdict[flabs[i]].append(temp)
 
-    t0med = np.median(tdict['temperature0'])
-    t0std = np.std(tdict['temperature0'])
-    t0delta = np.abs(np.array(tdict['target0']) -
-                     np.array(tdict['temperature0']))
-    t0deltastd = np.std(t0delta)
-    t0deltami = np.min(t0delta)
-    t0deltama = np.max(t0delta)
-    t0deltaa = np.average(t0delta)
+        # Now collapse down some stats
+        trange = tdict['Time'][-1] - tdict['Time'][0]
 
-    t1med = np.median(tdict['temperature1'])
-    t1std = np.std(tdict['temperature1'])
-    t1delta = np.abs(np.array(tdict['target1']) -
-                     np.array(tdict['temperature1']))
-    t1deltastd = np.std(t1delta)
-    t1deltami = np.min(t1delta)
-    t1deltama = np.max(t1delta)
-    t1deltaa = np.average(t1delta)
+        t0med = np.median(tdict['temperature0'])
+        t0std = np.std(tdict['temperature0'])
+        t0delta = np.abs(np.array(tdict['target0']) -
+                         np.array(tdict['temperature0']))
+        t0deltastd = np.std(t0delta)
+        t0deltami = np.min(t0delta)
+        t0deltama = np.max(t0delta)
+        t0deltaa = np.average(t0delta)
 
-    bedmed = np.median(tdict['bed_temperature'])
-    bedstd = np.std(tdict['bed_temperature'])
-    beddelta = np.abs(np.array(tdict['bed_target']) -
-                      np.array(tdict['bed_temperature']))
-    beddeltami = np.min(beddelta)
-    beddeltama = np.max(beddelta)
-    beddeltastd = np.std(beddelta)
-    beddeltaa = np.average(beddelta)
+        t1med = np.median(tdict['temperature1'])
+        t1std = np.std(tdict['temperature1'])
+        t1delta = np.abs(np.array(tdict['target1']) -
+                         np.array(tdict['temperature1']))
+        t1deltastd = np.std(t1delta)
+        t1deltami = np.min(t1delta)
+        t1deltama = np.max(t1delta)
+        t1deltaa = np.average(t1delta)
 
-    # Pack it all into a dict to return and store/report
-    retTemps = {"CalculationTime": trange,
-                "Temperature0": {"median": t0med,
-                                 "stddev": t0std,
-                                 "deltaavg": t0deltaa,
-                                 "deltamin": t0deltami,
-                                 "deltamax": t0deltama,
-                                 "deltastd": t0deltastd},
-                "Temperature1": {"median": t1med,
-                                 "stddev": t1std,
-                                 "deltaavg": t1deltaa,
-                                 "deltamin": t1deltami,
-                                 "deltamax": t1deltama,
-                                 "deltastd": t1deltastd},
-                "Bed": {"median": bedmed,
-                        "stddev": bedstd,
-                        "deltaavg": beddeltaa,
-                        "deltamin": beddeltami,
-                        "deltamax": beddeltama,
-                        "deltastd": beddeltastd},
-                }
+        bedmed = np.median(tdict['bed_temperature'])
+        bedstd = np.std(tdict['bed_temperature'])
+        beddelta = np.abs(np.array(tdict['bed_target']) -
+                          np.array(tdict['bed_temperature']))
+        beddeltami = np.min(beddelta)
+        beddeltama = np.max(beddelta)
+        beddeltastd = np.std(beddelta)
+        beddeltaa = np.average(beddelta)
+
+        # Pack it all into a dict to return and store/report
+        retTemps = {"CalculationTime": trange,
+                    "Temperature0": {"median": t0med,
+                                     "stddev": t0std,
+                                     "deltaavg": t0deltaa,
+                                     "deltamin": t0deltami,
+                                     "deltamax": t0deltama,
+                                     "deltastd": t0deltastd},
+                    "Temperature1": {"median": t1med,
+                                     "stddev": t1std,
+                                     "deltaavg": t1deltaa,
+                                     "deltamin": t1deltami,
+                                     "deltamax": t1deltama,
+                                     "deltastd": t1deltastd},
+                    "Bed": {"median": bedmed,
+                            "stddev": bedstd,
+                            "deltaavg": beddeltaa,
+                            "deltamin": beddeltami,
+                            "deltamax": beddeltama,
+                            "deltastd": beddeltastd},
+                    }
+    else:
+        # This happens when the printer query fails
+        retTemps = {}
 
     return retTemps
 
