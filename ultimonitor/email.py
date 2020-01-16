@@ -56,6 +56,8 @@ def constructMail(subject, body, fromaddr, toaddr):
     msg['Subject'] = subject
     msg.set_content(body)
 
+    print(msg)
+
     return msg
 
 
