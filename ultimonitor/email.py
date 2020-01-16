@@ -14,6 +14,7 @@
 from __future__ import division, print_function, absolute_import
 
 import imghdr
+import socket
 import smtplib
 from email.message import EmailMessage
 
@@ -29,14 +30,17 @@ def sendMail(message, smtploc='localhost', port=25):
     print("Sending email...")
 
     # TODO: catch the right timeout exception here
-    with smtplib.SMTP(smtploc, port, timeout=10.) as server:
-        retmsg = server.send_message(message)
+    try:
+        with smtplib.SMTP(smtploc, port, timeout=10.) as server:
+            retmsg = server.send_message(message)
+        print("Email sent!")
+    except socket.timeout:
+        print("Email sending timed out! Bummer. Check SMTP setup!")
 
     # NOTE: If you just print(message) you'll get the MIME stuff too,
     #   which is huge and probably not what you want!
     # print(message)
     # print(retmsg)
-    print("Email sent!")
 
 
 def constructMail(subject, body, fromaddr, toaddr):
