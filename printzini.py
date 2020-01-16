@@ -50,6 +50,7 @@ if __name__ == "__main__":
 
     # Initial parameters to compare against
     pJob = {"JobParameters": {"UUID": 8675309}}
+    curProg = -9999
     prevProg = -9999
 
     while True:
@@ -187,15 +188,16 @@ if __name__ == "__main__":
 
             # Need this to set the LED color appropriately
             actualStatus = stats['JobParameters']['JobState']
-        else:
-            # I forget what this is for?  I think a default/initial
-            #   state so the ledCheck below doesn't screw up?
-            actualStatus = stats['Status']
 
-        # Update the progress
-        print("Previous Progress: ", prevProg)
-        print("Current Progress: ", curProg)
-        prevProg = curProg
+            # Update the progress since we're printing
+            print("Previous Progress: ", prevProg)
+            print("Current Progress: ", curProg)
+            prevProg = curProg
+        else:
+            # This is if we're not printing, the printer will have ... wait
+            #   for it ... another/different status. Just store it and move on.
+            #   We need to record it to set the LED colors below, though.
+            actualStatus = stats['Status']
 
         leds.ledCheck(cDict['printer'], hsvCols,
                       statusColors, actualStatus)
