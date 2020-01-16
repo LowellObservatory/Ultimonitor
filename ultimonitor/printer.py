@@ -28,33 +28,37 @@ def getMaterial(printerip, headinfo, extruder=0):
     Don't need API id/key because these are all GET requests
     """
     mat = headinfo['extruders'][extruder]['active_material']['guid']
-    matXML = api.queryChecker(printerip, "materials/" + mat)
+    mXML = api.queryChecker(printerip, "materials/" + mat)
 
-    # This is a potential failure point to wrap it for now
-    try:
-        matMeta = xmltodict.parse(matXML)['fdmmaterial']['metadata']['name']
-        matProp = xmltodict.parse(matXML)['fdmmaterial']['properties']
-    except Exception as err:
-        # TODO: Catch the right exception
-        print(str(err))
-        matMeta = None
-        matProp = None
+    # Make sure the material query didn't croak for some reason
+    if mXML != {}:
+        # This is a potential failure point to wrap it for now
+        try:
+            matMeta = xmltodict.parse(mXML)['fdmmaterial']['metadata']['name']
+            matProp = xmltodict.parse(mXML)['fdmmaterial']['properties']
+        except Exception as err:
+            # TODO: Catch the right exception for xmltodict
+            print(str(err))
+            matMeta = None
+            matProp = None
 
-    if matMeta is not None:
-        matBrand = matMeta['brand']
-        matName = matMeta['material']
-        matColor = matMeta['color']
+        if matMeta is not None:
+            matBrand = matMeta['brand']
+            matName = matMeta['material']
+            matColor = matMeta['color']
+        else:
+            matBrand, matName, matColor = "UNKNOWN", "UNKNOWN", "UNKNOWN"
+
+        if matProp is not None:
+            matDiameter = matProp['diameter']
+            matDensity = matProp['density']
+        else:
+            matDiameter, matDensity = "UNKNOWN", "UNKNOWN"
+
+        material = "%s %s %s" % (matName, matBrand, matColor)
+        material += " (%s mm, %s g/cm^3)" % (matDiameter, matDensity)
     else:
-        matBrand, matName, matColor = "UNKNOWN", "UNKNOWN", "UNKNOWN"
-
-    if matProp is not None:
-        matDiameter = matProp['diameter']
-        matDensity = matProp['density']
-    else:
-        matDiameter, matDensity = "UNKNOWN", "UNKNOWN"
-
-    material = "%s %s %s" % (matName, matBrand, matColor)
-    material += " (%s mm, %s g/cm^3)" % (matDiameter, matDensity)
+        material = "UNKNOWN"
 
     return material
 
@@ -65,18 +69,19 @@ def statusCheck(printerip):
     """
     returnable = OrderedDict()
 
+    # We use the fill parameter here since these are all single replies;
+    #   it's easier to just set them to UNKNOWN if the query fails this way
     ptype = api.queryChecker(printerip, "system/variant", fill="UNKNOWN")
     pname = api.queryChecker(printerip, "system/name", fill="UNKNOWN")
     firmware = api.queryChecker(printerip, "system/firmware", fill="UNKNOWN")
     sysguid = api.queryChecker(printerip, "system/guid", fill="UNKNOWN")
+    status = api.queryChecker(printerip, "printer/status", fill="UNKNOWN")
 
     returnable.update({"Printer": {"Type": ptype,
                                    "Name": pname,
                                    "SWVersion": firmware,
-                                   "GUID": sysguid}})
-
-    status = api.queryChecker(printerip, "printer/status", fill="UNKNOWN")
-    returnable.update({"Status": status})
+                                   "GUID": sysguid},
+                       "Status": status})
 
     # We don't store this, but we pull lots of stuff out of it. We treat it
     #   slightly differently as the above since there are multiple values
@@ -86,6 +91,7 @@ def statusCheck(printerip):
         ext1 = headinfo['extruders'][0]['hotend']['id']
         ext2 = headinfo['extruders'][1]['hotend']['id']
 
+        # NOTE: There is an additional paranoia check in these for query fails
         material1 = getMaterial(printerip, headinfo, extruder=0)
         material2 = getMaterial(printerip, headinfo, extruder=1)
     else:
@@ -110,18 +116,31 @@ def statusCheck(printerip):
             ext2temps = headinfo['extruders'][1]['hotend']['temperature']
         else:
             ext1temps = ""
+
+        # Another multi-parameter check sequence
         printjob = api.queryChecker(printerip, "print_job")
+        if printjob != {}:
+            jobname = printjob['name']
+            jobstart = printjob['datetime_started']
+            jobsource = printjob['source']
+            jobuser = printjob['source_user']
+            jobuuid = printjob['uuid']
 
-        jobname = printjob['name']
-        jobstart = printjob['datetime_started']
-        jobsource = printjob['source']
-        jobuser = printjob['source_user']
-        jobuuid = printjob['uuid']
+            elapsedtime = printjob['time_elapsed']/60./60.
+            estimatedtime = printjob['time_total']/60./60.
+            progress = printjob['progress']*100
+            jobstate = printjob['state']
+        else:
+            jobname = "UNKNOWN"
+            jobstart = "UNKNOWN"
+            jobsource = "UNKNOWN"
+            jobuser = "UNKNOWN"
+            jobuuid = "UNKNOWN"
 
-        elapsedtime = printjob['time_elapsed']/60./60.
-        estimatedtime = printjob['time_total']/60./60.
-        progress = printjob['progress']*100
-        jobstate = printjob['state']
+            elapsedtime = -1
+            estimatedtime = -1
+            progress = -1
+            jobstate = "UNKNOWN"
 
         jp = {"Name": jobname,
               "TimeStart": jobstart,
