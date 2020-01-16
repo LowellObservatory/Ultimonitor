@@ -21,6 +21,61 @@ import time
 from ultimonitor import confparser, printer, email, leds
 
 
+def checkJob(stats, pJob):
+    """
+    """
+    # Is this the same job we saw last time in the loop?
+    if stats['JobParameters']['UUID'] != pJob['JobParameters']['UUID']:
+        print("New job found!")
+
+        # Set this job as the one to watch now
+        pJob = stats
+
+        # Notification trackers
+        notices = {"preamble": False,
+                   "start": False,
+                   "done10": False,
+                   "done50": False,
+                   "done90": False,
+                   "end": False}
+
+    return stats, notices
+
+
+def setupStats(stats):
+    """
+    """
+    # Clear our temperature stats
+    #   I know, I know, this sucks. This is a prototype!
+    tstats = {"Temperature0": {"median": [],
+                               "stddev": [],
+                               "deltaavg": [],
+                               "deltamin": [],
+                               "deltamax": [],
+                               "deltastd": []},
+              "Temperature1": {"median": [],
+                               "stddev": [],
+                               "deltaavg": [],
+                               "deltamin": [],
+                               "deltamax": [],
+                               "deltastd": []},
+              "Bed": {"median": [],
+                      "stddev": [],
+                      "deltaavg": [],
+                      "deltamin": [],
+                      "deltamax": [],
+                      "deltastd": []},
+              "CalculationTime": 0.
+              }
+
+    # Print the status to the log, but also get a string
+    #   representation that can be sent via email
+    strStatus = printer.formatStatus(stats)
+    print(strStatus)
+
+    return tstats, strStatus
+
+
 if __name__ == "__main__":
     conffile = 'ultimonitor.conf'
     cDict = confparser.parseConf(conffile)
@@ -61,47 +116,8 @@ if __name__ == "__main__":
         if stats != {}:
             # Is there an active print job?
             if stats['Status'] == 'printing':
-                # Is this the same job we saw last time in the loop?
-                if stats['JobParameters']['UUID'] != pJob['JobParameters']['UUID']:
-                    print("New job found!")
-
-                    # Clear our temperature stats
-                    #   I know, I know, this sucks. This is a prototype!
-                    tstats = {"Temperature0": {"median": [],
-                                               "stddev": [],
-                                               "deltaavg": [],
-                                               "deltamin": [],
-                                               "deltamax": [],
-                                               "deltastd": []},
-                              "Temperature1": {"median": [],
-                                               "stddev": [],
-                                               "deltaavg": [],
-                                               "deltamin": [],
-                                               "deltamax": [],
-                                               "deltastd": []},
-                              "Bed": {"median": [],
-                                      "stddev": [],
-                                      "deltaavg": [],
-                                      "deltamin": [],
-                                      "deltamax": [],
-                                      "deltastd": []},
-                              "CalculationTime": 0.
-                             }
-
-                    # Print the status to the log, but also get a string
-                    #   representation that can be sent via email
-                    strStatus = printer.formatStatus(stats)
-                    print(strStatus)
-
-                    # Set this job as the one to watch now
-                    pJob = stats
-
-                    # Notification trackers
-                    notices = {"start": False,
-                               "done10": False,
-                               "done50": False,
-                               "done90": False,
-                               "end": False}
+                # Check if this job is the same as the last job we saw
+                pJob, notices = checkJob(stats, pJob)
 
                 curProg = stats['JobParameters']['Progress']
                 curJobName = stats['JobParameters']['Name']
@@ -115,15 +131,30 @@ if __name__ == "__main__":
                 #   to this percentage complete, they'll still have big
                 #   deviations. Oh well.
                 msg = None
+                deets = None
                 noteKey = None
                 emailFlag = False
+
+                # TODO: Figure out if I can just get the "preprint" status
+                #   change and then trigger based on that. I forget the
+                #   details, though.
+                if notices['preamble'] is False:
+                    print("Collecting print setup information ...")
+                    tstats = setupStats(stats)
+                    notices['preamble'] = True
+                    # Make sure the query didn't fail!
+                    # Also grab our print information; we wait a little bit
+                    #  because sometimes the info (like print duration)
+                    #  isn't always *immediately* available, so we
+                    #  delay a little bit
+
+                    tstats, dstats = printer.collapseStats(retTemps,
+                                                            tstats)
+                    deets = printer.formatStatus(dstats)
+
                 if curProg > 0.5 and curProg < 100.:
                     retTemps = printer.tempStats(cDict['printer'].ip)
-                    if retTemps != {}:
-                        # Make sure the query didn't fail!
-                        tstats, dstats = printer.collapseStats(retTemps, tstats)
-                        deets = printer.formatStatus(dstats)
-                    else:
+                    if retTemps == {}:
                         deets = "Unfortunately, the printer was unavailable"
                         deets += " when temperature statistics were queried."
                         deets += "\n\nThat's probably not a good thing, but "
@@ -134,6 +165,7 @@ if __name__ == "__main__":
                     # Decision tree time!
                     if curProg >= 0. and notices['start'] is False:
                         print("Notify that the print is started")
+                        print("Collect the vital statistics")
                         noteKey = 'start'
                         emailFlag = True
                         # The first time thru gets a more detailed header, that
