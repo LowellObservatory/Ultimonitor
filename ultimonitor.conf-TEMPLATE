@@ -6,7 +6,7 @@ apikey = 867530986753098675309
 [email]
 smtpserver = ip.or.hostname
 fromaddr = printzini@address.domain
-statusemail = email@address.domain
+toaddr = email@address.domain
 footer = footer.txt
 
 [picam]

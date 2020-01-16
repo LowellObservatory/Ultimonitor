@@ -121,7 +121,7 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
                                subtype=imghdr.what(None, img.content),
                                filename="UltimakerSideView.jpg")
 
-    if picam is True:
+    if picam is not None:
         snapname = cameras.piCamCapture(picam)
 
         if snapname is not None:
