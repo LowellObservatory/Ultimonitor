@@ -107,6 +107,7 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
     body += footer
     body += "\n\nYour 3D pal, \nThe Great Printzini"
 
+    print(emailConfig.toaddr)
     msg = constructMail(subject, body,
                         emailConfig.fromaddr, emailConfig.toaddr)
 
