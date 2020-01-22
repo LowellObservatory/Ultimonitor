@@ -154,7 +154,6 @@ if __name__ == "__main__":
                     retTemps = printer.tempStats(cDict['printer'].ip)
                     tstats, dstats = printer.collapseStats(retTemps,
                                                            tstats)
-
                     deets = printer.formatStatus(dstats)
 
                     if retTemps == {}:
