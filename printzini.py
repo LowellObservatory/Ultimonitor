@@ -141,14 +141,8 @@ if __name__ == "__main__":
                 #   details, though.
                 if notices['preamble'] is False:
                     print("Collecting print setup information ...")
-                    tstats = setupStats(stats)
+                    tstats, strStatus = setupStats(stats)
                     notices['preamble'] = True
-                    # Make sure the query didn't fail!
-                    # Also grab our print information; we wait a little bit
-                    #  because sometimes the info (like print duration)
-                    #  isn't always *immediately* available, so we
-                    #  delay a little bit
-                    strStatus = printer.formatStatus(stats)
 
                 if curProg > 0.5 and curProg < 100.:
                     retTemps = printer.tempStats(cDict['printer'].ip)
