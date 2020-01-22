@@ -162,7 +162,7 @@ def statusCheck(printerip):
     else:
         # This is just a reminder; if it's not printing, then there
         #   will be *NO* JobParameters key in the dict!
-        print("Not printing!")
+        print("The printer is not printing! Here is it's current status:")
         print(status)
 
     return returnable

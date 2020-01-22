@@ -243,8 +243,10 @@ if __name__ == "__main__":
                 #   colors appropriately
                 actualStatus = stats['Status']
 
-            leds.ledCheck(cDict['printer'], hsvCols,
-                          statusColors, actualStatus)
+            # Only attempt to change the LED colors if we have a valid status
+            if actualStatus.lower() != 'unknown':
+                leds.ledCheck(cDict['printer'], hsvCols,
+                              statusColors, actualStatus)
         else:
             print("PRINTER UNREACHABLE!")
 
