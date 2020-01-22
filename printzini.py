@@ -155,6 +155,8 @@ if __name__ == "__main__":
                     tstats, dstats = printer.collapseStats(retTemps,
                                                            tstats)
 
+                    deets = printer.formatStatus(dstats)
+
                     if retTemps == {}:
                         deets = "Unfortunately, the printer was unavailable"
                         deets += " when temperature statistics were queried."
