@@ -21,7 +21,7 @@ import time
 from ultimonitor import confparser, printer, email, leds
 
 
-def checkJob(stats, pJob):
+def checkJob(stats, pJob, notices):
     """
     """
     # Is this the same job we saw last time in the loop?
@@ -107,6 +107,7 @@ if __name__ == "__main__":
     pJob = {"JobParameters": {"UUID": 8675309}}
     curProg = -9999
     prevProg = -9999
+    notices = None
 
     while True:
         # Do a check of everything we care about
@@ -117,7 +118,7 @@ if __name__ == "__main__":
             # Is there an active print job?
             if stats['Status'] == 'printing':
                 # Check if this job is the same as the last job we saw
-                pJob, notices = checkJob(stats, pJob)
+                pJob, notices = checkJob(stats, pJob, notices)
 
                 curProg = stats['JobParameters']['Progress']
                 curJobName = stats['JobParameters']['Name']
@@ -147,12 +148,13 @@ if __name__ == "__main__":
                     #  because sometimes the info (like print duration)
                     #  isn't always *immediately* available, so we
                     #  delay a little bit
-                    print(tstats)
+                    strStatus = printer.formatStatus(stats)
+
                 if curProg > 0.5 and curProg < 100.:
                     retTemps = printer.tempStats(cDict['printer'].ip)
                     tstats, dstats = printer.collapseStats(retTemps,
                                                            tstats)
-                    deets = printer.formatStatus(dstats)
+
                     if retTemps == {}:
                         deets = "Unfortunately, the printer was unavailable"
                         deets += " when temperature statistics were queried."
