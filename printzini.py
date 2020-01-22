@@ -147,13 +147,12 @@ if __name__ == "__main__":
                     #  because sometimes the info (like print duration)
                     #  isn't always *immediately* available, so we
                     #  delay a little bit
-
-                    tstats, dstats = printer.collapseStats(retTemps,
-                                                            tstats)
-                    deets = printer.formatStatus(dstats)
-
+                    print(tstats)
                 if curProg > 0.5 and curProg < 100.:
                     retTemps = printer.tempStats(cDict['printer'].ip)
+                    tstats, dstats = printer.collapseStats(retTemps,
+                                                           tstats)
+                    deets = printer.formatStatus(dstats)
                     if retTemps == {}:
                         deets = "Unfortunately, the printer was unavailable"
                         deets += " when temperature statistics were queried."
