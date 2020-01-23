@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 #
 #  This Source Code Form is subject to the terms of the Mozilla Public
@@ -145,6 +144,7 @@ if __name__ == "__main__":
                     notices['preamble'] = True
 
                 if curProg > 0.5 and curProg < 100.:
+                    # Grab our temperature metrics
                     retTemps = printer.tempStats(cDict['printer'].ip)
                     tstats, dstats = printer.collapseStats(retTemps,
                                                            tstats)
@@ -184,30 +184,31 @@ if __name__ == "__main__":
                         noteKey = 'done90'
                         emailFlag = True
 
-                elif curProg == 100. and notices['end'] is False:
-                    print("Notify that the print is done")
-                    noteKey = 'end'
-                    emailFlag = True
+                    elif curProg == 100. and notices['end'] is False:
+                        print("Notify that the print is done")
+                        noteKey = 'end'
+                        emailFlag = True
 
-                    # In addition to the temperature performance, add in the
-                    #   print duration as well.
-                    print("Job %s is %f %% complete" %
-                          (stats['JobParameters']['UUID'],
-                           stats['JobParameters']['Progress']))
-                    print("State: %s" % (stats['JobParameters']['JobState']))
+                        # In addition to the temperature performance,
+                        #   add in the print duration as well.
+                        print("Job %s is %f %% complete" %
+                              (stats['JobParameters']['UUID'],
+                               stats['JobParameters']['Progress']))
+                        print("State: %s" %
+                              (stats['JobParameters']['JobState']))
 
-                    if prevProg == -9999 or prevProg == 100.:
-                        # This means when we started, the print was done!
-                        #   Don't do anything in this case.
-                        print("Job %s is 100%% complete already..." %
-                              (stats['JobParameters']['UUID']), end='')
-                        print("Awaiting job cleanup...")
-                        print("Skipping notification for job completion")
-                        emailFlag = False
+                        if prevProg == -9999 or prevProg == 100.:
+                            # This means when we started, the print was done!
+                            #   Don't do anything in this case.
+                            print("Job %s is 100%% complete already..." %
+                                (stats['JobParameters']['UUID']), end='')
+                            print("Awaiting job cleanup...")
+                            print("Skipping notification for job completion")
+                            emailFlag = False
 
-                    # This state also means that we have no temp. statistics
-                    #   to report, so set the details string empty
-                    deets = ""
+                        # This state also means that we have no temp. statistics
+                        #   to report, so set the details string empty
+                        deets = ""
 
                 # Now check the states that we could have gotten into
                 if noteKey is not None:
