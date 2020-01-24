@@ -23,9 +23,10 @@ class emailSNMP(object):
         self.toaddr = None
 
 
-class ultimaker3e(object):
+class threeDimensionalPrinter(object):
     def __init__(self):
         self.ip = None
+        self.type = None
         self.apiid = None
         self.apikey = None
 

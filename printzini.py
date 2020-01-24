@@ -97,7 +97,8 @@ if __name__ == "__main__":
                     "wait_cleanup": "BrightGreen",
                     "error": "BrightRed",
                     "maintenance": "CadmiumYellow",
-                    "booting": "PhthaloGreen"}
+                    "booting": "PhthaloGreen",
+                    "wait_user_action": "BrightRed"}
 
     # Default sleep interval of 1 minute
     interval = 1.*60.

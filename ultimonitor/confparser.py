@@ -15,8 +15,9 @@ Further description.
 
 from __future__ import division, print_function, absolute_import
 
-from ligmos.utils import confparsers
 from ligmos.workers import confUtils
+from ligmos.utils import confparsers
+from ligmos.utils import classes as ligmosclass
 
 from . import classes
 
@@ -29,9 +30,16 @@ def parseConf(confName):
     pConf = confparsers.rawParser(confName)
 
     # Assignments to the class parameters
-    um3e = confUtils.assignConf(pConf['printerSetup'], classes.ultimaker3e)
-    email = confUtils.assignConf(pConf['email'], classes.emailSNMP)
-    picamera = confUtils.assignConf(pConf['picam'], classes.piCamSettings)
+    um3e = confUtils.assignConf(pConf['printerSetup'],
+                                classes.threeDimensionalPrinter)
+    email = confUtils.assignConf(pConf['email'],
+                                 classes.emailSNMP)
+    picamera = confUtils.assignConf(pConf['picam'],
+                                    classes.piCamSettings)
+
+    db = confUtils.assignConf(pConf['database'],
+                              ligmosclass.baseTarget)
+
 
     # Read in the footer file as a text string
     try:
@@ -40,4 +48,7 @@ def parseConf(confName):
     except (OSError, IOError):
         email.footer = None
 
-    return {"printer": um3e, "email": email, "rpicamera": picamera}
+    return {"printer": um3e,
+            "email": email,
+            "database": db,
+            "rpicamera": picamera}

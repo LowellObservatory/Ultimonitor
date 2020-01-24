@@ -63,9 +63,12 @@ def getMaterial(printerip, headinfo, extruder=0):
     return material
 
 
-def statusCheck(printerip):
+def getPrinterInfo(printerip):
     """
-    Don't need API id/key because these are all GET requests
+    All of these should be GET requests not needing authentication.
+
+    They also shouldn't ever really change, so it stands alone out here
+    and will be called once at startup
     """
     returnable = OrderedDict()
 
@@ -75,13 +78,24 @@ def statusCheck(printerip):
     pname = api.queryChecker(printerip, "system/name", fill="UNKNOWN")
     firmware = api.queryChecker(printerip, "system/firmware", fill="UNKNOWN")
     sysguid = api.queryChecker(printerip, "system/guid", fill="UNKNOWN")
-    status = api.queryChecker(printerip, "printer/status", fill="UNKNOWN")
 
     returnable.update({"Printer": {"Type": ptype,
                                    "Name": pname,
                                    "SWVersion": firmware,
-                                   "GUID": sysguid},
-                       "Status": status})
+                                   "GUID": sysguid}})
+
+    return returnable
+
+
+def statusCheck(printerip):
+    """
+    Don't need API id/key because these are all GET requests
+    """
+    returnable = OrderedDict()
+
+    # Get a few basic updates
+    status = api.queryChecker(printerip, "printer/status", fill="UNKNOWN")
+    memory = api.queryChecker(printerip, "system/memory")
 
     # We don't store this, but we pull lots of stuff out of it. We treat it
     #   slightly differently as the above since there are multiple values
@@ -102,14 +116,8 @@ def statusCheck(printerip):
 
     bedtype = api.queryChecker(printerip, "printer/bed/type", fill="UNKNOWN")
 
-    returnable.update({"PrintSetup": {"Extruder1": ext1,
-                                      "Material1": material1,
-                                      "Extruder2": ext2,
-                                      "Material2": material2,
-                                      "BedType": bedtype}})
-
     if status == "printing":
-        # Query some more!
+        # Yay, we're printing!  Query some more!
         bedtemp = api.queryChecker(printerip, "printer/bed/temperature")
         if bedtemp != {}:
             ext1temps = headinfo['extruders'][0]['hotend']['temperature']
@@ -157,13 +165,27 @@ def statusCheck(printerip):
               "EstimatedDuration": estimatedtime,
               "JobState": jobstate,
               "Progress": progress}
-
-        returnable.update({"JobParameters": jp})
     else:
         # This is just a reminder; if it's not printing, then there
         #   will be *NO* JobParameters key in the dict!
         print("The printer is not printing! Here is it's current status:")
         print(status)
+        jp = {}
+
+    # Pack up our results and head home
+    returnable.update({"PrintSetup": {"Extruder1": ext1,
+                                      "Material1": material1,
+                                      "Extruder2": ext2,
+                                      "Material2": material2,
+                                      "BedType": bedtype}})
+    returnable.update({"Status": status})
+
+    # Remember; these are in bytes
+    returnable.update({"MemTotal": memory['total']})
+    returnable.update({"MemUsed": memory['used']})
+    returnable.update({"MemFree": memory['total'] - memory['used']})
+
+    returnable.update({"JobParameters": jp})
 
     return returnable
 

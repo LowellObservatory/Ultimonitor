@@ -19,13 +19,25 @@ of heat a truer and sounder basis.
 from __future__ import division, print_function, absolute_import
 
 import time
+import datetime as dt
 
+from ligmos.utils import packetizer
+from ligmos.workers import connSetup
+
+from ultimonitor import apitools as api
 from ultimonitor import confparser, printer
 
 
-def tempStats(printerip):
+def tempStats(printerip, timeoffset=None):
     """
     """
+    if isinstance(timeoffset, dt.datetime):
+        print("Applying datetime offset: ", timeoffset)
+    elif isinstance(timeoffset, float) or isinstance(timeoffset, int):
+        print("Applying scalar/float offset: ", timeoffset)
+        print("THIS IS AS YET UNHANDLED, OOPS")
+        raise NotImplementedError
+
     # With what looks like a sample rate of ~10 Hz, 800 samples will give
     #   me ~80 seconds worth of temperature data.  For a query interval of
     #   60 seconds, which could vary depending on some picture stuff, this
@@ -39,94 +51,72 @@ def tempStats(printerip):
     tres = api.queryChecker(printerip, endpoint)
 
     if tres != {}:
-        # These will likely always be the same so just hard code them so I
-        #   don't have to parse them out of the results above
-        flabs = ['Time',
-                 'temperature0', 'target0', 'heater0',
-                 'flow_sensor0', 'flow_steps0',
-                 'temperature1', 'target1', 'heater1',
-                 'flow_sensor1', 'flow_steps1',
-                 'bed_temperature', 'bed_target', 'bed_heater',
-                 'active_hotend_or_state']
+        # For the Ultimaker 3e, the flow sensor hardware was removed before
+        #   the printer shipped so the following are always 0 or 65535;
+        #   We exclude them from the results because that's annoying
+        blacklist = ['flow_sensor0', 'flow_steps0',
+                     'flow_sensor1', 'flow_steps1']
 
-        # Quick and dirty list comprehension to set up our results dictionary
-        tdict = {}
-        [tdict.update({key: []}) for key in flabs]
-
-        for points in tres[1:]:
-            for i, temp in enumerate(points):
-                tdict[flabs[i]].append(temp)
-
-        # Now collapse down some stats
-        trange = tdict['Time'][-1] - tdict['Time'][0]
-
-        t0med = np.median(tdict['temperature0'])
-        t0std = np.std(tdict['temperature0'])
-        t0delta = np.abs(np.array(tdict['target0']) -
-                         np.array(tdict['temperature0']))
-        t0deltastd = np.std(t0delta)
-        t0deltami = np.min(t0delta)
-        t0deltama = np.max(t0delta)
-        t0deltaa = np.average(t0delta)
-
-        t1med = np.median(tdict['temperature1'])
-        t1std = np.std(tdict['temperature1'])
-        t1delta = np.abs(np.array(tdict['target1']) -
-                         np.array(tdict['temperature1']))
-        t1deltastd = np.std(t1delta)
-        t1deltami = np.min(t1delta)
-        t1deltama = np.max(t1delta)
-        t1deltaa = np.average(t1delta)
-
-        bedmed = np.median(tdict['bed_temperature'])
-        bedstd = np.std(tdict['bed_temperature'])
-        beddelta = np.abs(np.array(tdict['bed_target']) -
-                          np.array(tdict['bed_temperature']))
-        beddeltami = np.min(beddelta)
-        beddeltama = np.max(beddelta)
-        beddeltastd = np.std(beddelta)
-        beddeltaa = np.average(beddelta)
-
-        # Pack it all into a dict to return and store/report
-        retTemps = {"CalculationTime": trange,
-                    "Temperature0": {"median": t0med,
-                                     "stddev": t0std,
-                                     "deltaavg": t0deltaa,
-                                     "deltamin": t0deltami,
-                                     "deltamax": t0deltama,
-                                     "deltastd": t0deltastd},
-                    "Temperature1": {"median": t1med,
-                                     "stddev": t1std,
-                                     "deltaavg": t1deltaa,
-                                     "deltamin": t1deltami,
-                                     "deltamax": t1deltama,
-                                     "deltastd": t1deltastd},
-                    "Bed": {"median": bedmed,
-                            "stddev": bedstd,
-                            "deltaavg": beddeltaa,
-                            "deltamin": beddeltami,
-                            "deltamax": beddeltama,
-                            "deltastd": beddeltastd},
-                    }
+        for i, points in enumerate(tres):
+            if i == 0:
+                # Set up our returned dict
+                tdict = {}
+                for key in points:
+                    if key not in blacklist:
+                        tdict.update({key: []})
+                # Store all the labels so we can check against them later
+                flabs = points
+            else:
+                for j, temp in enumerate(points):
+                    if j == 0:
+                        # Apply our time offset
+                        temp = timeoffset + dt.timedelta(seconds=temp)
+                        # Convert it to seconds for influx
+                        temp = float(temp.strftime("%s.%f"))
+                    try:
+                        tdict[flabs[j]].append(temp)
+                    except KeyError:
+                        # This means that the column/key was blacklisted
+                        #   so we just pass silently onwards
+                        # print("ignoring blacklisted field", flabs[j])
+                        pass
     else:
         # This happens when the printer query fails
-        retTemps = {}
+        tdict = {}
 
-    return retTemps
+    return tdict
 
 
-def startCollections(cDict, loopTime=60.):
+def startCollections(cDict, db=None, loopTime=60.):
     """
     """
+    # Temperature timestamps are in seconds since boot ... kinda.
+    #   It *looks* like Ultimaker uses time.monotonic() in a lot of places,
+    #   and the reference point for that is *technically* undefined according
+    #   to the python docs; in practice it's probably close enough, though
+    #   it's worth noting that it's *immune* to NTP updates and system
+    #   clock changes in general.
+    uptimeSec = api.queryChecker(cDict['printer'].ip, "/system/uptime")
+    boottimeUTC = dt.datetime.utcnow() - dt.timedelta(seconds=uptimeSec)
     while True:
         # Do a check of everything we care about
         stats = printer.statusCheck(cDict['printer'].ip)
 
         # Did our status check work?
         if stats != {}:
-            retTemps = tempStats(cDict['printer'].ip)
+            retTemps = tempStats(cDict['printer'].ip, timeoffset=boottimeUTC)
 
-            print(retTemps)
+            # Make the influx packet that will be stored
+            #   First pop out the timestamp column so we can pass it in proper
+            ts = retTemps.pop("Time")
+            pkt = packetizer.makeInfluxPacket(meas=['temperatures'],
+                                              ts=ts,
+                                              fields=retTemps)
+
+            if db is not None:
+                print("Packet for database:")
+                print(pkt)
+
         print("Sleeping for %f ..." % (loopTime))
         time.sleep(loopTime)
 
@@ -135,4 +125,10 @@ if __name__ == "__main__":
     conffile = 'ultimonitor.conf'
     cDict = confparser.parseConf(conffile)
 
-    startCollections(cDict)
+    # Set up our database object
+    #   With contortions because I'm not using my own API in the usual way
+    db = connSetup.connIDB({'database': cDict['database']})['database']
+
+    db.tablename = "um3e"
+
+    startCollections(cDict, db=db)
