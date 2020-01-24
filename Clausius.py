@@ -97,7 +97,11 @@ def startCollections(cDict, db=None, loopTime=60.):
     #   it's worth noting that it's *immune* to NTP updates and system
     #   clock changes in general.
     uptimeSec = api.queryChecker(cDict['printer'].ip, "/system/uptime")
-    boottimeUTC = dt.datetime.utcnow() - dt.timedelta(seconds=uptimeSec)
+    if uptimeSec != {}:
+        boottimeUTC = dt.datetime.utcnow() - dt.timedelta(seconds=uptimeSec)
+    else:
+        boottimeUTC = None
+
     while True:
         # Do a check of everything we care about
         stats = printer.statusCheck(cDict['printer'].ip)
@@ -116,6 +120,7 @@ def startCollections(cDict, db=None, loopTime=60.):
             if db is not None:
                 print("Packet for database:")
                 print(pkt)
+                db.singleCommit(pkt, table=db.tablename, timeprec='s')
 
         print("Sleeping for %f ..." % (loopTime))
         time.sleep(loopTime)
