@@ -28,6 +28,25 @@ from ultimonitor import apitools as api
 from ultimonitor import confparser, printer
 
 
+def systemStats(printerip):
+    """
+    Query the printer for memory
+    """
+    endpoint = "/system/memory"
+    mem = api.queryChecker(printerip, endpoint)
+    if mem != {}:
+        mem.update({"free": mem['total'] - mem['used']})
+
+        pkt = packetizer.makeInfluxPacket(meas=['system'],
+                                          fields=mem,
+                                          tags=None)
+    else:
+        # Silly.
+        pkt = []
+
+    return pkt
+
+
 def tempStats(printerip, timeoffset=None):
     """
     Query the printer for temperatures, and format/prepare them for storage.
@@ -134,13 +153,20 @@ def startCollections(cDict, db=None, loopTime=60):
 
         # Did our status check work?
         if stats != {}:
+            # Collect the temperatures
             tempPkts = tempStats(cDict['printer'].ip, timeoffset=boottimeUTC)
+
+            # Collect the overall system info
+            sysPkts = systemStats(cDict['printer'].ip)
 
             if db is not None:
                 if tempPkts != []:
                     db.singleCommit(tempPkts,
                                     table=db.tablename,
                                     timeprec='ms')
+                if sysPkts != []:
+                    db.singleCommit(sysPkts,
+                                    table=db.tablename)
 
         print("Sleeping for %f ..." % (loopTime))
         for _ in range(int(loopTime)):
@@ -154,7 +180,6 @@ if __name__ == "__main__":
     # Set up our database object
     #   With contortions because I'm not using my own API in the usual way
     db = connSetup.connIDB({'database': cDict['database']})['database']
-
     db.tablename = "um3e"
 
     startCollections(cDict, db=db)
