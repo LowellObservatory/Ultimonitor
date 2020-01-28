@@ -8,9 +8,10 @@
 #
 #  @author: rhamilton
 
-"""One line description of module.
+"""The Great Printzini
 
-Further description.
+Monitor for the Ultimaker series of 3D printers, using their supported API.
+Also supports a Raspberry Pi camera to take additional pictures of the print.
 """
 
 from __future__ import division, print_function, absolute_import
@@ -39,40 +40,6 @@ def checkJob(stats, pJob, notices):
                    "end": False}
 
     return stats, notices
-
-
-# def setupStats(stats):
-#     """
-#     """
-#     # Clear our temperature stats
-#     #   I know, I know, this sucks. This is a prototype!
-#     tstats = {"Temperature0": {"median": [],
-#                                "stddev": [],
-#                                "deltaavg": [],
-#                                "deltamin": [],
-#                                "deltamax": [],
-#                                "deltastd": []},
-#               "Temperature1": {"median": [],
-#                                "stddev": [],
-#                                "deltaavg": [],
-#                                "deltamin": [],
-#                                "deltamax": [],
-#                                "deltastd": []},
-#               "Bed": {"median": [],
-#                       "stddev": [],
-#                       "deltaavg": [],
-#                       "deltamin": [],
-#                       "deltamax": [],
-#                       "deltastd": []},
-#               "CalculationTime": 0.
-#               }
-
-#     # Print the status to the log, but also get a string
-#     #   representation that can be sent via email
-#     strStatus = printer.formatStatus(stats)
-#     print(strStatus)
-
-#     return tstats, strStatus
 
 
 if __name__ == "__main__":
@@ -127,28 +94,18 @@ if __name__ == "__main__":
 
                 # Collect the temperature statistics, but only bother if
                 #   we're actually in progress. I set the threshold
-                #   to be > 0.5 so the extruders and bed should already
-                #   be self-regulating, but if it takes < 1 minute to get
-                #   to this percentage complete, they'll still have big
-                #   deviations. Oh well.
+                #   to be > 0.5 so the extruders and bed *should* be
+                #   regulated already
                 msg = None
                 deets = None
                 noteKey = None
                 emailFlag = False
 
                 # TODO: Figure out if I can just get the "preprint" status
-                #   change and then trigger based on that. I forget the
-                #   details, though.
+                #   change and then trigger based on that?
                 if notices['preamble'] is False:
                     print("Collecting print setup information ...")
-                    #
-                    # With Clausius in place, do I need this?
-                    #
-                    # tstats, strStatus = setupStats(stats)
-                    #
-                    # Really just need a way to collect the print setup info
-                    strStatus = ""
-                    #
+                    strStatus = printer.formatStatus(stats)
                     notices['preamble'] = True
 
                 if curProg > 0.5 and curProg < 100.:
@@ -261,4 +218,5 @@ if __name__ == "__main__":
             print("PRINTER UNREACHABLE!")
 
         print("Sleeping for %f seconds..." % (interval))
-        time.sleep(interval)
+        for _ in range(int(interval)):
+            time.sleep(1)
