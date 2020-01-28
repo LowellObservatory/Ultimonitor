@@ -143,7 +143,7 @@ def startCollections(cDict, db=None, loopTime=60):
                                     timeprec='ms')
 
         print("Sleeping for %f ..." % (loopTime))
-        for s in range(int(loopTime)):
+        for _ in range(int(loopTime)):
             time.sleep(1)
 
 
