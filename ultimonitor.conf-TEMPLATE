@@ -1,13 +1,25 @@
 [printerSetup]
 ip = ip.or.hostname
+type = printerBrandModel
 apiid = 8675309
 apikey = 867530986753098675309
+
+
+[database]
+type=influxdb
+host=dbhostname
+port=8086
+user=None
+enabled=True
+
 
 [email]
 smtpserver = ip.or.hostname
 fromaddr = printzini@address.domain
 toaddr = email@address.domain
 footer = footer.txt
+enabled=True
+
 
 [picam]
 # resolution = [2592, 1944]
@@ -20,3 +32,4 @@ exposure_mode = night
 meter_mode = matrix
 exposure_compensation = 25
 image_denoise = False
+enabled=True

@@ -36,7 +36,6 @@ def parseConf(confName):
                                  classes.emailSNMP)
     picamera = confUtils.assignConf(pConf['picam'],
                                     classes.piCamSettings)
-
     db = confUtils.assignConf(pConf['database'],
                               ligmosclass.baseTarget)
 

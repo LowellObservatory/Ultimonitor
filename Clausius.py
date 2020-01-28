@@ -30,6 +30,11 @@ from ultimonitor import confparser, printer
 
 def tempStats(printerip, timeoffset=None):
     """
+    Query the printer for temperatures, and format/prepare them for storage.
+
+    Entirely designed for putting into an influxdb database. If you want
+    another database type, well, point it at a different formatting
+    function in the conditional check on tres.
     """
     if isinstance(timeoffset, dt.datetime):
         print("Applying datetime offset: ", timeoffset)
@@ -53,41 +58,57 @@ def tempStats(printerip, timeoffset=None):
     if tres != {}:
         # For the Ultimaker 3e, the flow sensor hardware was removed before
         #   the printer shipped so the following are always 0 or 65535;
-        #   We exclude them from the results because that's annoying
-        blacklist = ['flow_sensor0', 'flow_steps0',
-                     'flow_sensor1', 'flow_steps1']
+        #   We exclude them from the results because that's annoying.
+        # NOTE: case isn't checked, so they must be *exact* matches!
+        #       Also - "Time" is skipped because we store that differently
+        bklst = ['Time',
+                 'flow_sensor0', 'flow_steps0',
+                 'flow_sensor1', 'flow_steps1']
+
+        allpkts = []
 
         for i, points in enumerate(tres):
+            # At this point, if the query is successful, tres is a list of
+            #   lists,  the first of which is the labels and the rest are
+            #   lists of values matching those labels.
             if i == 0:
-                # Set up our returned dict
-                tdict = {}
-                for key in points:
-                    if key not in blacklist:
-                        tdict.update({key: []})
-                # Store all the labels so we can check against them later
                 flabs = points
+                # Translate the blacklisted labels to
+                if bklst != []:
+                    gi = [k for k, lab in enumerate(flabs) if lab not in bklst]
+                else:
+                    gi = []
             else:
-                for j, temp in enumerate(points):
-                    if j == 0:
-                        # Apply our time offset
-                        temp = timeoffset + dt.timedelta(seconds=temp)
-                        # Convert it to seconds for influx
-                        temp = float(temp.strftime("%s.%f"))
-                    try:
-                        tdict[flabs[j]].append(temp)
-                    except KeyError:
-                        # This means that the column/key was blacklisted
-                        #   so we just pass silently onwards
-                        # print("ignoring blacklisted field", flabs[j])
-                        pass
+                # Make an influxdb packet, but first do some contortions
+                #   to make the timestamp a real timestamp rather than
+                #   just an offset from boot
+                ts = timeoffset + dt.timedelta(seconds=points[0])
+                # We need to strip out the
+                # Convert it to nanoseconds for influx
+                #   NOTE: It CAN NOT be a float! Must be an Int :(
+                ts = int(float(ts.strftime("%s.%f"))*1e3)
+
+                # Grab the non-blacklisted items and construct our packet
+                #   I can't think of a good way to put this into a set of
+                #   non-confusing list comprehensions so I'm breaking it out
+                fields = {}
+                for idx in gi:
+                    fields.update({flabs[idx]: points[idx]})
+
+                pkt = packetizer.makeInfluxPacket(meas=['temperatures'],
+                                                  ts=ts, fields=fields,
+                                                  tags=None)
+                # Have to do pkt[0] because makeInfluxPacket is still
+                #   annoying and quirky
+                allpkts.append(pkt[0])
     else:
         # This happens when the printer query fails
-        tdict = {}
+        allpkts = []
 
-    return tdict
+    return allpkts
 
 
-def startCollections(cDict, db=None, loopTime=60.):
+def startCollections(cDict, db=None, loopTime=60):
     """
     """
     # Temperature timestamps are in seconds since boot ... kinda.
@@ -98,7 +119,12 @@ def startCollections(cDict, db=None, loopTime=60.):
     #   clock changes in general.
     uptimeSec = api.queryChecker(cDict['printer'].ip, "/system/uptime")
     if uptimeSec != {}:
-        boottimeUTC = dt.datetime.utcnow() - dt.timedelta(seconds=uptimeSec)
+        # You may be tempted to choose .utcnow() instead of now(); but,
+        #   that'd be a mistake.  Influx tries to be fancy for you,
+        #   so it's easier to just get the regular time and hope for the best
+        #   Otherwise you'll be tracing UTC offsets in the dashboard(s)
+        #   for literally ever, which is the worst.
+        boottimeUTC = dt.datetime.now() - dt.timedelta(seconds=uptimeSec)
     else:
         boottimeUTC = None
 
@@ -108,22 +134,17 @@ def startCollections(cDict, db=None, loopTime=60.):
 
         # Did our status check work?
         if stats != {}:
-            retTemps = tempStats(cDict['printer'].ip, timeoffset=boottimeUTC)
-
-            # Make the influx packet that will be stored
-            #   First pop out the timestamp column so we can pass it in proper
-            ts = retTemps.pop("Time")
-            pkt = packetizer.makeInfluxPacket(meas=['temperatures'],
-                                              ts=ts,
-                                              fields=retTemps)
+            tempPkts = tempStats(cDict['printer'].ip, timeoffset=boottimeUTC)
 
             if db is not None:
-                print("Packet for database:")
-                print(pkt)
-                db.singleCommit(pkt, table=db.tablename, timeprec='s')
+                if tempPkts != []:
+                    db.singleCommit(tempPkts,
+                                    table=db.tablename,
+                                    timeprec='ms')
 
         print("Sleeping for %f ..." % (loopTime))
-        time.sleep(loopTime)
+        for s in range(int(loopTime)):
+            time.sleep(1)
 
 
 if __name__ == "__main__":
