@@ -39,7 +39,6 @@ def parseConf(confName):
     db = confUtils.assignConf(pConf['database'],
                               ligmosclass.baseTarget)
 
-
     # Read in the footer file as a text string
     try:
         with open(pConf['email']['footer'], 'r') as f:
