@@ -42,34 +42,9 @@ def checkJob(stats, pJob, notices):
     return stats, notices
 
 
-if __name__ == "__main__":
-    conffile = 'ultimonitor.conf'
-    cDict = confparser.parseConf(conffile)
-
-    # A quick way to disable email alerts; should put this in the config?
-    emailSquasher = False
-
-    # This provides a map between the colors defined above and the
-    #   actual values that the Ulimaker 3 Extended may return while printing
-    #   or just in general. If printing, the printing status is used, but
-    #   this is a dict of all status values that I could figure out
-    hsvCols = leds.pallettBobRoss()
-    statusColors = {"idle": "PrussianBlue",
-                    "printing": "TitaniumWhite",
-                    "pausing": "IndianYellow",
-                    "paused": "CadmiumYellow",
-                    "resuming": "IndianYellow",
-                    "pre_print": "SapGreen",
-                    "post_print": "BrightBlue",
-                    "wait_cleanup": "BrightGreen",
-                    "error": "BrightRed",
-                    "maintenance": "CadmiumYellow",
-                    "booting": "PhthaloGreen",
-                    "wait_user_action": "BrightRed"}
-
-    # Default sleep interval of 1 minute
-    interval = 1.*60.
-
+def startMonitoring(cDict, statusColors, emailSquasher=False, loopInterval=60):
+    """
+    """
     # Initial parameters to compare against
     pJob = {"JobParameters": {"UUID": 8675309}}
     curProg = -9999
@@ -217,6 +192,38 @@ if __name__ == "__main__":
         else:
             print("PRINTER UNREACHABLE!")
 
-        print("Sleeping for %f seconds..." % (interval))
-        for _ in range(int(interval)):
+        print("Sleeping for %f seconds..." % (loopInterval))
+        for _ in range(int(loopInterval)):
             time.sleep(1)
+
+
+if __name__ == "__main__":
+    conffile = './config/ultimonitor.conf'
+    cDict = confparser.parseConf(conffile)
+
+    # A quick way to disable email alerts; should put this in the config?
+    emailSquasher = False
+
+    # This provides a map between the colors defined above and the
+    #   actual values that the Ulimaker 3 Extended may return while printing
+    #   or just in general. If printing, the printing status is used, but
+    #   this is a dict of all status values that I could figure out
+    hsvCols = leds.pallettBobRoss()
+    statusColors = {"idle": "PrussianBlue",
+                    "printing": "TitaniumWhite",
+                    "pausing": "IndianYellow",
+                    "paused": "CadmiumYellow",
+                    "resuming": "IndianYellow",
+                    "pre_print": "SapGreen",
+                    "post_print": "BrightBlue",
+                    "wait_cleanup": "BrightGreen",
+                    "error": "BrightRed",
+                    "maintenance": "CadmiumYellow",
+                    "booting": "PhthaloGreen",
+                    "wait_user_action": "BrightRed"}
+
+    # Default sleep interval of 1 minute
+    interval = 60*1
+
+    startMonitoring(cDict, statusColors,
+                    emailSquasher=emailSquasher, loopInterval=interval)
