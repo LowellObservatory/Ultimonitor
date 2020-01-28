@@ -41,38 +41,38 @@ def checkJob(stats, pJob, notices):
     return stats, notices
 
 
-def setupStats(stats):
-    """
-    """
-    # Clear our temperature stats
-    #   I know, I know, this sucks. This is a prototype!
-    tstats = {"Temperature0": {"median": [],
-                               "stddev": [],
-                               "deltaavg": [],
-                               "deltamin": [],
-                               "deltamax": [],
-                               "deltastd": []},
-              "Temperature1": {"median": [],
-                               "stddev": [],
-                               "deltaavg": [],
-                               "deltamin": [],
-                               "deltamax": [],
-                               "deltastd": []},
-              "Bed": {"median": [],
-                      "stddev": [],
-                      "deltaavg": [],
-                      "deltamin": [],
-                      "deltamax": [],
-                      "deltastd": []},
-              "CalculationTime": 0.
-              }
+# def setupStats(stats):
+#     """
+#     """
+#     # Clear our temperature stats
+#     #   I know, I know, this sucks. This is a prototype!
+#     tstats = {"Temperature0": {"median": [],
+#                                "stddev": [],
+#                                "deltaavg": [],
+#                                "deltamin": [],
+#                                "deltamax": [],
+#                                "deltastd": []},
+#               "Temperature1": {"median": [],
+#                                "stddev": [],
+#                                "deltaavg": [],
+#                                "deltamin": [],
+#                                "deltamax": [],
+#                                "deltastd": []},
+#               "Bed": {"median": [],
+#                       "stddev": [],
+#                       "deltaavg": [],
+#                       "deltamin": [],
+#                       "deltamax": [],
+#                       "deltastd": []},
+#               "CalculationTime": 0.
+#               }
 
-    # Print the status to the log, but also get a string
-    #   representation that can be sent via email
-    strStatus = printer.formatStatus(stats)
-    print(strStatus)
+#     # Print the status to the log, but also get a string
+#     #   representation that can be sent via email
+#     strStatus = printer.formatStatus(stats)
+#     print(strStatus)
 
-    return tstats, strStatus
+#     return tstats, strStatus
 
 
 if __name__ == "__main__":
@@ -141,16 +141,28 @@ if __name__ == "__main__":
                 #   details, though.
                 if notices['preamble'] is False:
                     print("Collecting print setup information ...")
-                    tstats, strStatus = setupStats(stats)
+                    #
+                    # With Clausius in place, do I need this?
+                    #
+                    # tstats, strStatus = setupStats(stats)
+                    #
+                    # Really just need a way to collect the print setup info
+                    strStatus = ""
+                    #
                     notices['preamble'] = True
 
                 if curProg > 0.5 and curProg < 100.:
-                    # Grab our temperature metrics
-                    retTemps = printer.tempStats(cDict['printer'].ip)
-                    tstats, dstats = printer.collapseStats(retTemps,
-                                                           tstats)
-                    deets = printer.formatStatus(dstats)
-
+                    retTemps = {}
+                    deets = ""
+                    #
+                    # Grab our temperature metrics from the storage
+                    #   database that was specified
+                    #
+                    # retTemps = printer.tempStats(cDict['printer'].ip)
+                    # tstats, dstats = printer.collapseStats(retTemps,
+                    #                                        tstats)
+                    # deets = printer.formatStatus(dstats)
+                    #
                     if retTemps == {}:
                         deets = "Unfortunately, the printer was unavailable"
                         deets += " when temperature statistics were queried."
@@ -166,8 +178,8 @@ if __name__ == "__main__":
                         noteKey = 'start'
                         emailFlag = True
                         # The first time thru gets a more detailed header, that
-                        #   we actually already set above. We're just overriding
-                        #   the shortened version here
+                        #   we actually already set above. We're just
+                        #   overloading the shortened version here
                         deets = strStatus
 
                     elif curProg >= 10. and notices['done10'] is False:
@@ -202,12 +214,12 @@ if __name__ == "__main__":
                             # This means when we started, the print was done!
                             #   Don't do anything in this case.
                             print("Job %s is 100%% complete already..." %
-                                (stats['JobParameters']['UUID']), end='')
+                                  (stats['JobParameters']['UUID']), end='')
                             print("Awaiting job cleanup...")
                             print("Skipping notification for job completion")
                             emailFlag = False
 
-                        # This state also means that we have no temp. statistics
+                        # This state also means that we have no temp. stats.
                         #   to report, so set the details string empty
                         deets = ""
 
