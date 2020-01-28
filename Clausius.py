@@ -187,7 +187,7 @@ def startCollections(cDict, db=None, loopTime=60):
 
 
 if __name__ == "__main__":
-    conffile = 'ultimonitor.conf'
+    conffile = './config/ultimonitor.conf'
     cDict = confparser.parseConf(conffile)
 
     # Set up our database object
