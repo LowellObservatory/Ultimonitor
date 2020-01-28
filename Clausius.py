@@ -161,12 +161,25 @@ def startCollections(cDict, db=None, loopTime=60):
 
             if db is not None:
                 if tempPkts != []:
-                    db.singleCommit(tempPkts,
-                                    table=db.tablename,
-                                    timeprec='ms')
+                    try:
+                        db.singleCommit(tempPkts,
+                                        table=db.tablename,
+                                        timeprec='ms')
+                    except Exception as e:
+                        # Errors seen so far:
+                        # influxdb.exceptions.InfluxDBServerError
+                        print("DATABASE COMMIT ERROR!")
+                        print(str(e))
                 if sysPkts != []:
-                    db.singleCommit(sysPkts,
-                                    table=db.tablename)
+                    try:
+                        db.singleCommit(sysPkts,
+                                        table=db.tablename,
+                                        timeprec='ms')
+                    except Exception as e:
+                        # Errors seen so far:
+                        # influxdb.exceptions.InfluxDBServerError
+                        print("DATABASE COMMIT ERROR!")
+                        print(str(e))
 
         print("Sleeping for %f ..." % (loopTime))
         for _ in range(int(loopTime)):
