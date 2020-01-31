@@ -15,12 +15,113 @@ Further description.
 
 from __future__ import division, print_function, absolute_import
 
+import datetime as dt
 from collections import OrderedDict
 
 import xmltodict
-import numpy as np
+
+from ligmos.utils import packetizer
 
 from . import apitools as api
+
+
+def systemStats(printerip):
+    """
+    Query the printer for memory
+    """
+    endpoint = "/system/memory"
+    mem = api.queryChecker(printerip, endpoint)
+    if mem != {}:
+        mem.update({"free": mem['total'] - mem['used']})
+
+        pkt = packetizer.makeInfluxPacket(meas=['system'],
+                                          fields=mem,
+                                          tags=None)
+    else:
+        # Silly.
+        pkt = []
+
+    return pkt
+
+
+def tempStats(printerip, timeoffset=None, nsamps=800):
+    """
+    Query the printer for temperatures, and format/prepare them for storage.
+
+    With what looks like a sample rate of ~10 Hz, 800 samples will give
+    ~80 seconds worth of temperature data.  For a query interval of
+    60 seconds, which could vary depending on some picture stuff, this
+    will be a pretty good representation of the performance/stability.
+
+    Entirely designed for putting into an influxdb database. If you want
+    another database type, well, point it at a different formatting
+    function in the conditional check on tres.
+    """
+    if isinstance(timeoffset, dt.datetime):
+        print("Applying datetime offset: ", timeoffset)
+    elif isinstance(timeoffset, float) or isinstance(timeoffset, int):
+        print("Applying scalar/float offset: ", timeoffset)
+        print("THIS IS AS YET UNHANDLED, OOPS")
+        raise NotImplementedError
+
+    endpoint = "/printer/diagnostics/temperature_flow/%d" % (nsamps)
+
+    # This query is a house of cards; if it fails because the printer
+    #   is unreachable, literally everything will implode. So check that
+    #   the return value isn't empty!!!
+    tres = api.queryChecker(printerip, endpoint)
+
+    if tres != {}:
+        # For the Ultimaker 3e, the flow sensor hardware was removed before
+        #   the printer shipped so the following are always 0 or 65535;
+        #   We exclude them from the results because that's annoying.
+        # NOTE: case isn't checked, so they must be *exact* matches!
+        #       Also - "Time" is skipped because we store that differently
+        bklst = ['Time',
+                 'flow_sensor0', 'flow_steps0',
+                 'flow_sensor1', 'flow_steps1']
+
+        allpkts = []
+
+        for i, points in enumerate(tres):
+            # At this point, if the query is successful, tres is a list of
+            #   lists,  the first of which is the labels and the rest are
+            #   lists of values matching those labels.
+            if i == 0:
+                flabs = points
+                # Translate the blacklisted labels to
+                if bklst != []:
+                    gi = [k for k, lab in enumerate(flabs) if lab not in bklst]
+                else:
+                    gi = []
+            else:
+                # Make an influxdb packet, but first do some contortions
+                #   to make the timestamp a real timestamp rather than
+                #   just an offset from boot
+                ts = timeoffset + dt.timedelta(seconds=points[0])
+                # We need to strip out the
+                # Convert it to nanoseconds for influx
+                #   NOTE: It CAN NOT be a float! Must be an Int :(
+                ts = int(float(ts.strftime("%s.%f"))*1e3)
+
+                # Grab the non-blacklisted items and construct our packet
+                #   I can't think of a good way to put this into a set of
+                #   non-confusing list comprehensions so I'm breaking it out
+                fields = {}
+                for idx in gi:
+                    fields.update({flabs[idx]: points[idx]})
+
+                pkt = packetizer.makeInfluxPacket(meas=['temperatures'],
+                                                  ts=ts, fields=fields,
+                                                  tags=None)
+                # Have to do pkt[0] because makeInfluxPacket is still
+                #   annoying and quirky
+                allpkts.append(pkt[0])
+    else:
+        # This happens when the printer query fails
+        allpkts = []
+
+    return allpkts
 
 
 def getMaterial(printerip, headinfo, extruder=0):
@@ -95,7 +196,6 @@ def statusCheck(printerip):
 
     # Get a few basic updates
     status = api.queryChecker(printerip, "printer/status", fill="UNKNOWN")
-    memory = api.queryChecker(printerip, "system/memory")
 
     # We don't store this, but we pull lots of stuff out of it. We treat it
     #   slightly differently as the above since there are multiple values
@@ -155,11 +255,8 @@ def statusCheck(printerip):
               "Source": jobsource,
               "Username": jobuser,
               "UUID": jobuuid,
-              "BedTemp": bedtemp['current'],
               "BedTempSetp": bedtemp['target'],
-              "Extruder1Temp": ext1temps['current'],
               "Extruder1Setp": ext1temps['target'],
-              "Extruder2Temp": ext2temps['current'],
               "Extruder2Setp": ext2temps['target'],
               "ElapsedTime": elapsedtime,
               "EstimatedDuration": estimatedtime,
@@ -179,12 +276,6 @@ def statusCheck(printerip):
                                       "Material2": material2,
                                       "BedType": bedtype}})
     returnable.update({"Status": status})
-
-    # Remember; these are in bytes
-    returnable.update({"MemTotal": memory['total']})
-    returnable.update({"MemUsed": memory['used']})
-    returnable.update({"MemFree": memory['total'] - memory['used']})
-
     returnable.update({"JobParameters": jp})
 
     return returnable
@@ -204,9 +295,8 @@ def formatStatus(stats):
                     retStr += "\t%s: %.3f hrs\n" % (key, stats[sect][key])
                 elif key == 'Progress':
                     retStr += "\t%s: %.3f %%\n" % (key, stats[sect][key])
-                elif key in ['BedTemp', 'BedTempSetp',
-                             'Extruder1Temp', 'Extruder1Setp',
-                             'Extruder2Temp', 'Extruder2Setp']:
+                elif key in ['BedTempSetp',
+                             'Extruder1Setp', 'Extruder2Setp']:
                     retStr += "\t%s: %.3f C\n" % (key, stats[sect][key])
                 else:
                     retStr += "\t%s: %s\n" % (key, stats[sect][key])
@@ -219,144 +309,3 @@ def formatStatus(stats):
                 retStr += "\t%s: %f\n" % (sect, stats[sect])
 
     return retStr
-
-
-def tempStats(printerip):
-    """
-    """
-    # With what looks like a sample rate of ~10 Hz, 800 samples will give
-    #   me ~80 seconds worth of temperature data.  For a query interval of
-    #   60 seconds, which could vary depending on some picture stuff, this
-    #   will be a pretty good representation of the performance/stability.
-    nsamps = 800
-    endpoint = "/printer/diagnostics/temperature_flow/%d" % (nsamps)
-
-    # This query is a house of cards; if it fails because the printer
-    #   is unreachable, literally everything will implode. So check that
-    #   the return value isn't empty!!!
-    tres = api.queryChecker(printerip, endpoint)
-
-    if tres != {}:
-        # These will likely always be the same so just hard code them so I
-        #   don't have to parse them out of the results above
-        flabs = ['Time',
-                 'temperature0', 'target0', 'heater0',
-                 'flow_sensor0', 'flow_steps0',
-                 'temperature1', 'target1', 'heater1',
-                 'flow_sensor1', 'flow_steps1',
-                 'bed_temperature', 'bed_target', 'bed_heater',
-                 'active_hotend_or_state']
-
-        # Quick and dirty list comprehension to set up our results dictionary
-        tdict = {}
-        [tdict.update({key: []}) for key in flabs]
-
-        for points in tres[1:]:
-            for i, temp in enumerate(points):
-                tdict[flabs[i]].append(temp)
-
-        # Now collapse down some stats
-        trange = tdict['Time'][-1] - tdict['Time'][0]
-
-        t0med = np.median(tdict['temperature0'])
-        t0std = np.std(tdict['temperature0'])
-        t0delta = np.abs(np.array(tdict['target0']) -
-                         np.array(tdict['temperature0']))
-        t0deltastd = np.std(t0delta)
-        t0deltami = np.min(t0delta)
-        t0deltama = np.max(t0delta)
-        t0deltaa = np.average(t0delta)
-
-        t1med = np.median(tdict['temperature1'])
-        t1std = np.std(tdict['temperature1'])
-        t1delta = np.abs(np.array(tdict['target1']) -
-                         np.array(tdict['temperature1']))
-        t1deltastd = np.std(t1delta)
-        t1deltami = np.min(t1delta)
-        t1deltama = np.max(t1delta)
-        t1deltaa = np.average(t1delta)
-
-        bedmed = np.median(tdict['bed_temperature'])
-        bedstd = np.std(tdict['bed_temperature'])
-        beddelta = np.abs(np.array(tdict['bed_target']) -
-                          np.array(tdict['bed_temperature']))
-        beddeltami = np.min(beddelta)
-        beddeltama = np.max(beddelta)
-        beddeltastd = np.std(beddelta)
-        beddeltaa = np.average(beddelta)
-
-        # Pack it all into a dict to return and store/report
-        retTemps = {"CalculationTime": trange,
-                    "Temperature0": {"median": t0med,
-                                     "stddev": t0std,
-                                     "deltaavg": t0deltaa,
-                                     "deltamin": t0deltami,
-                                     "deltamax": t0deltama,
-                                     "deltastd": t0deltastd},
-                    "Temperature1": {"median": t1med,
-                                     "stddev": t1std,
-                                     "deltaavg": t1deltaa,
-                                     "deltamin": t1deltami,
-                                     "deltamax": t1deltama,
-                                     "deltastd": t1deltastd},
-                    "Bed": {"median": bedmed,
-                            "stddev": bedstd,
-                            "deltaavg": beddeltaa,
-                            "deltamin": beddeltami,
-                            "deltamax": beddeltama,
-                            "deltastd": beddeltastd},
-                    }
-    else:
-        # This happens when the printer query fails
-        retTemps = {}
-
-    return retTemps
-
-
-def collapseStats(currenTemps, tstats):
-    """
-    """
-    for key in tstats:
-        # This skips any flat keys
-        if isinstance(tstats[key], dict):
-            for elem in tstats[key]:
-                tstats[key][elem].append(currenTemps[key][elem])
-        # This may fail in the future if there are additional
-        #   flat keys that aren't cumulative
-        elif isinstance(tstats[key], float):
-            tstats[key] += currenTemps[key]
-
-    tottime = tstats['CalculationTime']
-
-    # Collapse the stats down into the final metrics
-    temp0_deltaavg = np.average(tstats['Temperature0']['deltaavg'])
-    temp0_deltastd = np.average(tstats['Temperature0']['deltastd'])
-    temp0_deltamin = np.min(tstats['Temperature0']['deltamin'])
-    temp0_deltamax = np.max(tstats['Temperature0']['deltamax'])
-
-    temp1_deltaavg = np.average(tstats['Temperature1']['deltaavg'])
-    temp1_deltastd = np.average(tstats['Temperature1']['deltastd'])
-    temp1_deltamin = np.min(tstats['Temperature1']['deltamin'])
-    temp1_deltamax = np.max(tstats['Temperature1']['deltamax'])
-
-    bed_deltaavg = np.average(tstats['Bed']['deltaavg'])
-    bed_deltastd = np.average(tstats['Bed']['deltastd'])
-    bed_deltamin = np.min(tstats['Bed']['deltamin'])
-    bed_deltamax = np.max(tstats['Bed']['deltamax'])
-
-    resultDict = {"CalculationTime": round(tottime, 6),
-                  "Extruder0Temp": {"DeviationAvg": round(temp0_deltaavg, 6),
-                                    "DeviationSTD": round(temp0_deltastd, 6),
-                                    "DeviationMin": round(temp0_deltamin, 6),
-                                    "DeviationMax": round(temp0_deltamax, 6)},
-                  "Extruder1Temp": {"DeviationAvg": round(temp1_deltaavg, 6),
-                                    "DeviationSTD": round(temp1_deltastd, 6),
-                                    "DeviationMin": round(temp1_deltamin, 6),
-                                    "DeviationMax": round(temp1_deltamax, 6)},
-                  "BedTemp": {"DeviationAvg": round(bed_deltaavg, 6),
-                              "DeviationSTD": round(bed_deltastd, 6),
-                              "DeviationMin": round(bed_deltamin, 6),
-                              "DeviationMax": round(bed_deltamax, 6)}
-                  }
-
-    return tstats, resultDict
