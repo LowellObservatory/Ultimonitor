@@ -28,25 +28,43 @@ def parseConf(confName):
     use the master parser over in ligmos, but it's fine for now.
     """
     pConf = confparsers.rawParser(confName)
+    eConf = confparsers.checkEnabled(pConf)
 
-    # Assignments to the class parameters
-    um3e = confUtils.assignConf(pConf['printerSetup'],
-                                classes.threeDimensionalPrinter)
-    email = confUtils.assignConf(pConf['email'],
-                                 classes.emailSNMP)
-    picamera = confUtils.assignConf(pConf['picam'],
-                                    classes.piCamSettings)
-    db = confUtils.assignConf(pConf['database'],
-                              ligmosclass.baseTarget)
+    expectedSectionNames = ['printerSetup', 'email',
+                            'picam',
+                            'databaseSetup', 'databaseQuery']
 
-    # Read in the footer file as a text string
-    try:
-        with open(pConf['email']['footer'], 'r') as f:
-            email.footer = f.read()
-    except (OSError, IOError):
-        email.footer = None
+    returnable = {}
+    for section in expectedSectionNames:
+        if section == 'printerSetup':
+            clstype = classes.threeDimensionalPrinter
+        elif section == 'email':
+            clstype = classes.emailSNMP
+        elif section == 'picam':
+            clstype = classes.piCamSettings
+        elif section == 'databaseSetup':
+            clstype = ligmosclass.baseTarget
+        else:
+            clstype = None
 
-    return {"printer": um3e,
-            "email": email,
-            "database": db,
-            "rpicamera": picamera}
+        if clstype is not None:
+            try:
+                actualConfig = confUtils.assignConf(eConf[section], clstype)
+                if section == 'email':
+                    # Read in the footer file as a text string
+                    try:
+                        with open(pConf['email']['footer'], 'r') as f:
+                            actualConfig.footer = f.read()
+                    except (OSError, IOError):
+                        actualConfig.footer = None
+
+                validSect = {section: actualConfig}
+            except KeyError:
+                print("WARNING: MISSING EXPECTED CONFIGURATION SECTION!")
+                print("%s NOT FOUND OR NOT ENABLED IN %s" % \
+                      (section, confName))
+                validSect = None
+
+        returnable.update(validSect)
+
+    return returnable

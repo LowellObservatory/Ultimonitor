@@ -3,9 +3,10 @@ ip = ip.or.hostname
 type = printerBrandModel
 apiid = 8675309
 apikey = 867530986753098675309
+enabled=True
 
 
-[database]
+[databaseSetup]
 type=influxdb
 host=dbhostname
 port=8086
