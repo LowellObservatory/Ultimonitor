@@ -64,11 +64,10 @@ def tempStats(printerip, timeoffset=None, nsamps=800):
         print("THIS IS AS YET UNHANDLED, OOPS")
         raise NotImplementedError
 
-    endpoint = "/printer/diagnostics/temperature_flow/%d" % (nsamps)
-
     # This query is a house of cards; if it fails because the printer
     #   is unreachable, literally everything will implode. So check that
     #   the return value isn't empty!!!
+    endpoint = "/printer/diagnostics/temperature_flow/%d" % (nsamps)
     tres = api.queryChecker(printerip, endpoint)
 
     if tres != {}:

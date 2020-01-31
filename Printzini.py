@@ -18,7 +18,8 @@ from __future__ import division, print_function, absolute_import
 
 import time
 
-from ultimonitor import confparser, printer, email, leds
+from ultimonitor import email as emailHelper
+from ultimonitor import confparser, printer, leds
 
 
 def checkJob(stats, pJob, notices):
@@ -42,7 +43,9 @@ def checkJob(stats, pJob, notices):
     return stats, notices
 
 
-def startMonitoring(cDict, statusColors, emailSquasher=False, loopInterval=60):
+def startMonitoring(cDict, statusColors, loopInterval=60,
+                    squashEmail=False, squashPiCam=False,
+                    squashUltiCam=False):
     """
     """
     # Initial parameters to compare against
@@ -51,9 +54,20 @@ def startMonitoring(cDict, statusColors, emailSquasher=False, loopInterval=60):
     prevProg = -9999
     notices = None
 
+    # Some renames first, to allow for debugging and squashing of stuff
+    email = None
+    if squashEmail is False:
+        email = cDict['email']
+    picam = None
+    if squashPiCam is False:
+        picam = cDict['picam']
+    ulticam = None
+    if squashUltiCam is False:
+        ulticam = cDict['printerSetup']
+
     while True:
         # Do a check of everything we care about
-        stats = printer.statusCheck(cDict['printer'].ip)
+        stats = printer.statusCheck(cDict['printerSetup'].ip)
 
         # Did our status check work?
         if stats != {}:
@@ -96,12 +110,12 @@ def startMonitoring(cDict, statusColors, emailSquasher=False, loopInterval=60):
                     # deets = printer.formatStatus(dstats)
                     #
                     if retTemps == {}:
-                        deets = "Unfortunately, the printer was unavailable"
+                        deets = "Unfortunately, the database was unavailable"
                         deets += " when temperature statistics were queried."
                         deets += "\n\nThat's probably not a good thing, but "
                         deets += "it could just mean that the network "
                         deets += "was interrupted unexpectedly. You should "
-                        deets += "probably check on the printer!"
+                        deets += "probably check on stuff!"
 
                     # Decision tree time!
                     if curProg >= 0. and notices['start'] is False:
@@ -159,17 +173,20 @@ def startMonitoring(cDict, statusColors, emailSquasher=False, loopInterval=60):
                 if noteKey is not None:
                     notices[noteKey] = True
                     print(deets)
-                    if emailFlag is True and emailSquasher is False:
+                    if emailFlag is True:
                         print(noteKey)
                         print(notices[noteKey])
                         print(notices)
-                        msg = email.makeEmailUpdate(noteKey,
-                                                    curJobID,
-                                                    curJobName,
-                                                    deets, cDict['email'],
-                                                    picam=cDict['rpicamera'],
-                                                    ulticam=cDict['printer'])
-                        email.sendMail(msg, smtploc=cDict['email'].smtpserver)
+                        msg = emailHelper.makeEmailUpdate(noteKey,
+                                                          curJobID,
+                                                          curJobName,
+                                                          deets, email,
+                                                          picam=picam,
+                                                          ulticam=ulticam)
+                        # If squashEmail is True, email will be None
+                        if email is not None:
+                            emailHelper.sendMail(msg,
+                                                 smtploc=email.smtpserver)
 
                 # Need this to set the LED color appropriately
                 actualStatus = stats['JobParameters']['JobState']
@@ -187,7 +204,7 @@ def startMonitoring(cDict, statusColors, emailSquasher=False, loopInterval=60):
 
             # Only attempt to change the LED colors if we have a valid status
             if actualStatus.lower() != 'unknown':
-                leds.ledCheck(cDict['printer'], hsvCols,
+                leds.ledCheck(cDict['printerSetup'], hsvCols,
                               statusColors, actualStatus)
         else:
             print("PRINTER UNREACHABLE!")
@@ -201,8 +218,10 @@ if __name__ == "__main__":
     conffile = './config/ultimonitor.conf'
     cDict = confparser.parseConf(conffile)
 
-    # A quick way to disable email alerts; should put this in the config?
-    emailSquasher = False
+    # A quick way to disable stuff while debugging
+    squashEmail = True
+    squashPiCam = True
+    squashUltiCam = True
 
     # This provides a map between the colors defined above and the
     #   actual values that the Ulimaker 3 Extended may return while printing
@@ -225,5 +244,6 @@ if __name__ == "__main__":
     # Default sleep interval of 1 minute
     interval = 60*1
 
-    startMonitoring(cDict, statusColors,
-                    emailSquasher=emailSquasher, loopInterval=interval)
+    startMonitoring(cDict, statusColors, loopInterval=interval,
+                    squashEmail=squashEmail, squashPiCam=squashPiCam,
+                    squashUltiCam=squashUltiCam)

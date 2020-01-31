@@ -63,7 +63,7 @@ def parseConf(confName):
                 print("WARNING: MISSING EXPECTED CONFIGURATION SECTION!")
                 print("%s NOT FOUND OR NOT ENABLED IN %s" % \
                       (section, confName))
-                validSect = None
+                validSect = {section: None}
 
         returnable.update(validSect)
 
