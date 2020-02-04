@@ -44,7 +44,7 @@ def systemStats(printerip):
     return pkt
 
 
-def tempStats(printerip, timeoffset=None, nsamps=800):
+def tempFlow(printerip, timeoffset=None, nsamps=800):
     """
     Query the printer for temperatures, and format/prepare them for storage.
 

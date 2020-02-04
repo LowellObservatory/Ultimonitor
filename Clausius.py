@@ -54,8 +54,8 @@ def startCollections(cDict, db=None, loopTime=60):
         # Did our status check work?
         if stats != {}:
             # Collect the temperatures
-            tempPkts = printer.tempStats(cDict['printer'].ip,
-                                         timeoffset=boottimeUTC)
+            tempPkts = printer.tempFlow(cDict['printer'].ip,
+                                        timeoffset=boottimeUTC)
 
             # Collect the overall system info
             sysPkts = printer.systemStats(cDict['printer'].ip)

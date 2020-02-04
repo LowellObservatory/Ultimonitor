@@ -185,8 +185,7 @@ def startMonitoring(cDict, statusColors, loopInterval=60,
                                                           ulticam=ulticam)
                         # If squashEmail is True, email will be None
                         if email is not None:
-                            emailHelper.sendMail(msg,
-                                                 smtploc=email.smtpserver)
+                            emailHelper.sendMail(msg, smtploc=email.host)
 
                 # Need this to set the LED color appropriately
                 actualStatus = stats['JobParameters']['JobState']
