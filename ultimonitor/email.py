@@ -48,6 +48,7 @@ def sendMail(message, smtploc='localhost', port=25, user=None, passw=None):
             with smtplib.SMTP(smtploc, port, timeout=10.) as server:
                 retmsg = server.send_message(message)
             print("Email sent!")
+            print("send_message returned:", retmsg)
         except emailExceptions:
             print("Email sending failed! Bummer. Check SMTP setup!")
     elif port == 465:
@@ -60,6 +61,8 @@ def sendMail(message, smtploc='localhost', port=25, user=None, passw=None):
             context = ssl.create_default_context()
             with smtplib.SMTP_SSL(smtploc, port,
                                   context=context, timeout=10.) as server:
+                # Reminder: passw *MUST* be an ascii endoded string
+                #   Sorry, no emoji passwords.
                 server.login(user, passw)
                 retmsg = server.send_message(message)
             print("Email sent!")
