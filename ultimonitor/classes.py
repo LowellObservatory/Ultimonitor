@@ -19,7 +19,10 @@ from __future__ import division, print_function, absolute_import
 class emailSNMP(object):
     def __init__(self):
         self.smtpserver = None
-        self.fromaddr = None
+        self.smtpport = 465
+        self.smtpuser = None
+        self.smtppass = None
+        self.fromname = None
         self.toaddr = None
 
 

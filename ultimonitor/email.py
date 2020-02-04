@@ -13,6 +13,7 @@
 
 from __future__ import division, print_function, absolute_import
 
+import ssl
 import imghdr
 import socket
 import smtplib
@@ -21,21 +22,50 @@ from email.message import EmailMessage
 from . import cameras
 
 
-def sendMail(message, smtploc='localhost', port=25):
+def sendMail(message, smtploc='localhost', port=25, user=None, passw=None):
     """
     This assumes that the SMTP server has no authentication, and that
     message is an instance of EmailMessage.
     """
 
-    print("Sending email...")
-
-    # TODO: catch the right timeout exception here
     try:
-        with smtplib.SMTP(smtploc, port, timeout=10.) as server:
-            retmsg = server.send_message(message)
-        print("Email sent!")
-    except socket.timeout:
-        print("Email sending timed out! Bummer. Check SMTP setup!")
+        # This is dumb, but since port is coming from a config file it's
+        #   probably still a string at this point.  If we can't int() it,
+        #   bail and scream
+        port = int(port)
+    except ValueError:
+        print("FATAL ERROR: Can't interpret port %s!" % (port))
+        port = None
+
+    print("Sending email...")
+    emailExceptions = (socket.timeout, ConnectionError,
+                       smtplib.SMTPAuthenticationError,
+                       smtplib.SMTPConnectError,
+                       smtplib.SMTPResponseException)
+
+    if port == 25:
+        try:
+            with smtplib.SMTP(smtploc, port, timeout=10.) as server:
+                retmsg = server.send_message(message)
+            print("Email sent!")
+        except emailExceptions:
+            print("Email sending failed! Bummer. Check SMTP setup!")
+    elif port == 465:
+        try:
+            # NOTE: For this to work, you must ENABLE "Less secure app access"
+            #   for Google/GMail/GSuite accounts! Otherwise you'll get
+            # Return code 535
+            # 5.7.8 Username and Password not accepted. Learn more at
+            # 5.7.8  https://support.google.com/mail/?p=BadCredentials
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(smtploc, port,
+                                  context=context, timeout=10.) as server:
+                server.login(user, passw)
+                retmsg = server.send_message(message)
+            print("Email sent!")
+        except emailExceptions as e:
+            print(str(e))
+            print("Email sending failed! Bummer. Check SMTP setup!")
 
     # NOTE: If you just print(message) you'll get the MIME stuff too,
     #   which is huge and probably not what you want!
@@ -43,11 +73,14 @@ def sendMail(message, smtploc='localhost', port=25):
     # print(retmsg)
 
 
-def constructMail(subject, body, fromaddr, toaddr):
+def constructMail(subject, body, fromaddr, toaddr, fromname=None):
     """
     """
     msg = EmailMessage()
-    msg['From'] = fromaddr
+    if fromname is None:
+        msg['From'] = fromaddr
+    else:
+        msg['From'] = "%s via <%s>" % (fromname, fromaddr)
     msg['To'] = toaddr
 
     # Make sure replies go to the list, not to this 'from' address
@@ -120,8 +153,8 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
             if img is not None:
                 # Attach it to the message
                 msg.add_attachment(img.content, maintype='image',
-                                subtype=imghdr.what(None, img.content),
-                                filename="UltimakerSideView.jpg")
+                                   subtype=imghdr.what(None, img.content),
+                                   filename="UltimakerSideView.jpg")
 
         if picam is not None:
             snapname = cameras.piCamCapture(picam)
@@ -130,8 +163,8 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
                 with open(snapname, 'rb') as pisnap:
                     piimg = pisnap.read()
                     msg.add_attachment(piimg, maintype='image',
-                                    subtype=imghdr.what(None, piimg),
-                                    filename="UltimakerTopView.png")
+                                       subtype=imghdr.what(None, piimg),
+                                       filename="UltimakerTopView.png")
             else:
                 print("PiCamera capture failed!")
     else:
