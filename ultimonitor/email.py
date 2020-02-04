@@ -27,6 +27,8 @@ def sendMail(message, smtploc='localhost', port=25, user=None, passw=None):
     This assumes that the SMTP server has no authentication, and that
     message is an instance of EmailMessage.
     """
+    # Ultimate return value to know whether we need to try again later
+    success = False
 
     try:
         # This is dumb, but since port is coming from a config file it's
@@ -49,6 +51,7 @@ def sendMail(message, smtploc='localhost', port=25, user=None, passw=None):
                 retmsg = server.send_message(message)
             print("Email sent!")
             print("send_message returned:", retmsg)
+            success = True
         except emailExceptions:
             print("Email sending failed! Bummer. Check SMTP setup!")
     elif port == 465:
@@ -66,14 +69,14 @@ def sendMail(message, smtploc='localhost', port=25, user=None, passw=None):
                 server.login(user, passw)
                 retmsg = server.send_message(message)
             print("Email sent!")
+            success = True
         except emailExceptions as e:
             print(str(e))
             print("Email sending failed! Bummer. Check SMTP setup!")
+    else:
+        print("UNKNOWN SMTP METHOD! NOT SENDING ANY MAIL.")
 
-    # NOTE: If you just print(message) you'll get the MIME stuff too,
-    #   which is huge and probably not what you want!
-    # print(message)
-    # print(retmsg)
+    return success
 
 
 def constructMail(subject, body, fromaddr, toaddr, fromname=None):
