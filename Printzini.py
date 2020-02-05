@@ -43,9 +43,9 @@ def checkJob(stats, pJob, notices):
     return stats, notices
 
 
-def startMonitoring(cDict, statusColors, loopInterval=60,
-                    squashEmail=False, squashPiCam=False,
-                    squashUltiCam=False):
+def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
+                     squashEmail=False, squashPiCam=False,
+                     squashUltiCam=False):
     """
     """
     # Initial parameters to compare against
@@ -54,7 +54,8 @@ def startMonitoring(cDict, statusColors, loopInterval=60,
     prevProg = -9999
     notices = None
 
-    # Some renames first, to allow for debugging and squashing of stuff
+    # Some renames, also some debugging and squashing of stuff
+    printerip = cDict['printerSetup'].ip
     email = None
     if squashEmail is False:
         email = cDict['email']
@@ -67,10 +68,16 @@ def startMonitoring(cDict, statusColors, loopInterval=60,
 
     while True:
         # Do a check of everything we care about
-        stats = printer.statusCheck(cDict['printerSetup'].ip)
+        stats = printer.statusCheck(printerip)
 
+        singleFlow = printer.tempFlow(printerip)
         # Did our status check work?
         if stats != {}:
+            # The "printer/status" endpoint is pretty terse, but the
+            #   "printer/diagnostics/temperature_flow" endpoint is both
+            #   highly detailed (sampled ~10 Hz) and highly specific
+            #   with it's "active_hotend_or_state" parameter. Use that.
+
             # Is there an active print job?
             if stats['Status'] == 'printing':
                 # Check if this job is the same as the last job we saw
@@ -90,8 +97,10 @@ def startMonitoring(cDict, statusColors, loopInterval=60,
                 noteKey = None
                 emailFlag = False
 
-                # TODO: Figure out if I can just get the "preprint" status
-                #   change and then trigger based on that?
+                # Trigger based on the slightly more detailed printing status
+                #   found in the "print_job" endpoint
+                if pJob['JobState'] == 'printing':
+                    pass
                 if notices['preamble'] is False:
                     print("Collecting print setup information ...")
                     strStatus = printer.formatStatus(stats)
@@ -203,14 +212,17 @@ def startMonitoring(cDict, statusColors, loopInterval=60,
 
             # Only attempt to change the LED colors if we have a valid status
             if actualStatus.lower() != 'unknown':
-                leds.ledCheck(cDict['printerSetup'], hsvCols,
+                # NOTE: Pass in the entire printer configuration since
+                #   this is a PUT action and needs API authentication
+                leds.ledCheck(cDict['printerSetup'],
                               statusColors, actualStatus)
         else:
             print("PRINTER UNREACHABLE!")
 
-        print("Sleeping for %f seconds..." % (loopInterval))
-        for _ in range(int(loopInterval)):
-            time.sleep(1)
+    # Take a nap in our infinite loop
+    print("Sleeping for %f seconds..." % (loopInterval))
+    for _ in range(int(loopInterval)):
+        time.sleep(1)
 
 
 if __name__ == "__main__":
@@ -222,27 +234,41 @@ if __name__ == "__main__":
     squashPiCam = True
     squashUltiCam = True
 
-    # This provides a map between the colors defined above and the
-    #   actual values that the Ulimaker 3 Extended may return while printing
-    #   or just in general. If printing, the printing status is used, but
-    #   this is a dict of all status values that I could figure out
+    # These are our color options, given as a dict of color names and their
+    #   associated HSV (!NOT RGB!) properties which are actually sent to the
+    #   case LEDs via the printer API
     hsvCols = leds.pallettBobRoss()
-    statusColors = {"idle": "PrussianBlue",
-                    "printing": "TitaniumWhite",
-                    "pausing": "IndianYellow",
-                    "paused": "CadmiumYellow",
-                    "resuming": "IndianYellow",
-                    "pre_print": "SapGreen",
-                    "post_print": "BrightBlue",
-                    "wait_cleanup": "BrightGreen",
-                    "error": "BrightRed",
-                    "maintenance": "CadmiumYellow",
-                    "booting": "PhthaloGreen",
-                    "wait_user_action": "BrightRed"}
 
-    # Default sleep interval of 1 minute
-    interval = 60*1
+    # The numerical codes are seen in "printer/diagnostics/temperature_flow/"
+    #   See also: griffin/printer/drivers/marlin/applicationLayer.py
+    # TODO: Figure out if there are additional valid states in 1 thru 9
+    flowStateMap = {0: 'printing',
+                    10: 'idle',
+                    11: 'pausing',
+                    12: 'paused',
+                    13: 'resuming',
+                    14: 'pre_print',
+                    15: 'post_print',
+                    16: 'wait_cleanup',
+                    17: 'wait_user_action'}
 
-    startMonitoring(cDict, statusColors, loopInterval=interval,
-                    squashEmail=squashEmail, squashPiCam=squashPiCam,
-                    squashUltiCam=squashUltiCam)
+    # NOTE: There are 3 additional states (error, maintenance, booting) that
+    #   aren't captured in the flowStateMap since they originate elsewhere
+    #   in the Ultimaker griffin engine
+    statusColors = {"idle": hsvCols["PrussianBlue"],
+                    "printing": hsvCols["TitaniumWhite"],
+                    "pausing": hsvCols["IndianYellow"],
+                    "paused": hsvCols["CadmiumYellow"],
+                    "resuming": hsvCols["IndianYellow"],
+                    "pre_print": hsvCols["SapGreen"],
+                    "post_print": hsvCols["BrightBlue"],
+                    "wait_cleanup": hsvCols["BrightGreen"],
+                    "wait_user_action": hsvCols["BrightRed"],
+                    "error": hsvCols["BrightRed"],
+                    "maintenance": hsvCols["CadmiumYellow"],
+                    "booting": hsvCols["PhthaloGreen"]}
+
+    # Actually monitor
+    monitorUltimaker(cDict, flowStateMap, statusColors, loopInterval=30,
+                     squashEmail=squashEmail, squashPiCam=squashPiCam,
+                     squashUltiCam=squashUltiCam)
