@@ -82,8 +82,15 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
             singleFlow = printer.tempFlow(printerip, nsamps=1)[0]
             flowState = singleFlow['fields']['active_hotend_or_state']
             flowStateWords = statusMap[flowState]
-            print("flowState: %s\t\t\t/printer/state: %s" % (flowStateWords,
-                                                             stats['Status']))
+            print()
+            print("flowState: %s" % (flowStateWords))
+            print("/printer/state: %s" % (stats['Status']))
+            # If we're not actually printing, it won't be possible to get
+            #   the state from the print_job endpoint because it'll be blank!
+            if stats['JobParameters'] != {}:
+                printjobState = stats['JobParameters']['JobState']
+                print("/print_job/state: %s" % (printjobState))
+            print()
 
             # We have to do a check in two parts, because some states are from
             #   the lower level printer firmware and some states are from the
