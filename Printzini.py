@@ -70,7 +70,6 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
         # Do a check of everything we care about
         stats = printer.statusCheck(printerip)
 
-        singleFlow = printer.tempFlow(printerip)
         # Did our status check work?
         if stats != {}:
             # The "printer/status" endpoint is pretty terse, but the
@@ -78,7 +77,33 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
             #   highly detailed (sampled ~10 Hz) and highly specific
             #   with it's "active_hotend_or_state" parameter. Use that.
 
-            # Is there an active print job?
+            # This returns a list of influxdb structured packets; since we
+            #   only have one sample, it's a list with len() == 1
+            singleFlow = printer.tempFlow(printerip, nsamps=1)[0]
+            flowState = singleFlow['fields']['active_hotend_or_state']
+            flowStateWords = statusMap[flowState]
+            print("flowState: %s\t\t\t/printer/state: %s" % (flowStateWords,
+                                                             stats['Status']))
+
+            # We have to do a check in two parts, because some states are from
+            #   the lower level printer firmware and some states are from the
+            #   higher level Ultimaker software
+            if stats['Status'] in ['error', 'maintenance', 'booting']:
+                actualStatus = stats['Status']
+            else:
+                # Use the lower level status since it's more detailed
+                actualStatus = flowStateWords
+
+            # Only attempt to change the LED colors if we have a valid status
+            if actualStatus.lower() != 'unknown':
+                # NOTE: Pass in the entire printer configuration since
+                #   this is a PUT action and needs API authentication.
+                #   Use actualStatus to capture the full range of states
+                leds.ledCheck(cDict['printerSetup'],
+                              statusColors, actualStatus)
+
+            # Trigger on the high level status here so I don't have to deal
+            #   *all* the possibilities of the low level one
             if stats['Status'] == 'printing':
                 # Check if this job is the same as the last job we saw
                 pJob, notices = checkJob(stats, pJob, notices)
@@ -97,16 +122,14 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
                 noteKey = None
                 emailFlag = False
 
-                # Trigger based on the slightly more detailed printing status
-                #   found in the "print_job" endpoint
-                if pJob['JobState'] == 'printing':
-                    pass
-                if notices['preamble'] is False:
-                    print("Collecting print setup information ...")
-                    strStatus = printer.formatStatus(stats)
-                    notices['preamble'] = True
+                # Only grab info when we're really printing.
+                #   'pre_print' is too early and duration will be missing
+                if actualStatus is 'printing':
+                    if notices['preamble'] is False:
+                        print("Collecting print setup information ...")
+                        strStatus = printer.formatStatus(stats)
+                        notices['preamble'] = True
 
-                if curProg > 0.5 and curProg < 100.:
                     retTemps = {}
                     deets = ""
                     #
@@ -203,26 +226,13 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
                 print("Previous Progress: ", prevProg)
                 print("Current Progress: ", curProg)
                 prevProg = curProg
-
-            else:
-                # This is if we're not printing, the printer will have a
-                #   different status. Just store it so we can set LED
-                #   colors appropriately
-                actualStatus = stats['Status']
-
-            # Only attempt to change the LED colors if we have a valid status
-            if actualStatus.lower() != 'unknown':
-                # NOTE: Pass in the entire printer configuration since
-                #   this is a PUT action and needs API authentication
-                leds.ledCheck(cDict['printerSetup'],
-                              statusColors, actualStatus)
         else:
             print("PRINTER UNREACHABLE!")
 
-    # Take a nap in our infinite loop
-    print("Sleeping for %f seconds..." % (loopInterval))
-    for _ in range(int(loopInterval)):
-        time.sleep(1)
+        # Take a nap in our infinite loop
+        print("Sleeping for %f seconds..." % (loopInterval))
+        for _ in range(int(loopInterval)):
+            time.sleep(1)
 
 
 if __name__ == "__main__":
