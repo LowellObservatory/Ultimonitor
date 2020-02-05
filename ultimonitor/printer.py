@@ -44,7 +44,7 @@ def systemStats(printerip):
     return pkt
 
 
-def tempFlow(printerip, timeoffset=None, nsamps=800):
+def tempFlow(printerip, nsamps=800, debug=False):
     """
     Query the printer for temperatures, and format/prepare them for storage.
 
@@ -57,12 +57,23 @@ def tempFlow(printerip, timeoffset=None, nsamps=800):
     another database type, well, point it at a different formatting
     function in the conditional check on tres.
     """
-    if isinstance(timeoffset, dt.datetime):
-        print("Applying datetime offset: ", timeoffset)
-    elif isinstance(timeoffset, float) or isinstance(timeoffset, int):
-        print("Applying scalar/float offset: ", timeoffset)
-        print("THIS IS AS YET UNHANDLED, OOPS")
-        raise NotImplementedError
+    boottime = None
+    # Temperature timestamps are in seconds since boot ... kinda.
+    #   It *looks* like Ultimaker uses time.monotonic() in a lot of places,
+    #   and the reference point for that is *technically* undefined according
+    #   to the python docs; in practice it's probably close enough, though
+    #   it's worth noting that it's *immune* to NTP updates and system
+    #   clock changes in general. Ugh.
+    uptimeSec = api.queryChecker(printerip, "/system/uptime")
+    if uptimeSec != {}:
+        # You may be tempted to choose .utcnow() instead of now(); but,
+        #   that'd be a mistake.  Influx tries to be fancy for you,
+        #   so it's easier to just get the regular time and hope for the best
+        #   Otherwise you'll be tracing UTC offsets in the dashboard(s)
+        #   for literally ever, which is the worst.
+        boottime = dt.datetime.now() - dt.timedelta(seconds=uptimeSec)
+        if debug is True:
+            print("Calculated datetime data offset: ", boottime)
 
     # This query is a house of cards; if it fails because the printer
     #   is unreachable, literally everything will implode. So check that
@@ -70,7 +81,7 @@ def tempFlow(printerip, timeoffset=None, nsamps=800):
     endpoint = "/printer/diagnostics/temperature_flow/%d" % (nsamps)
     tres = api.queryChecker(printerip, endpoint)
 
-    if tres != {}:
+    if tres != {} and boottime is not None:
         # For the Ultimaker 3e, the flow sensor hardware was removed before
         #   the printer shipped so the following are always 0 or 65535;
         #   We exclude them from the results because that's annoying.
@@ -97,11 +108,11 @@ def tempFlow(printerip, timeoffset=None, nsamps=800):
                 # Make an influxdb packet, but first do some contortions
                 #   to make the timestamp a real timestamp rather than
                 #   just an offset from boot
-                ts = timeoffset + dt.timedelta(seconds=points[0])
-                # We need to strip out the
-                # Convert it to nanoseconds for influx
+                ts = boottime + dt.timedelta(seconds=points[0])
+                # Convert it to milliseconds for influx
                 #   NOTE: It CAN NOT be a float! Must be an Int :(
-                ts = int(float(ts.strftime("%s.%f"))*1e3)
+                #         If we omit ndigits to round() it'll return an int
+                ts = round(float(ts.strftime("%s.%f"))*1e3)
 
                 # Grab the non-blacklisted items and construct our packet
                 #   I can't think of a good way to put this into a set of
@@ -117,6 +128,7 @@ def tempFlow(printerip, timeoffset=None, nsamps=800):
                 #   annoying and quirky
                 allpkts.append(pkt[0])
     else:
+        print("ERROR: Printer query failed!")
         # This happens when the printer query fails
         allpkts = []
 

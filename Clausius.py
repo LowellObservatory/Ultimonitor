@@ -19,46 +19,28 @@ of heat a truer and sounder basis.
 from __future__ import division, print_function, absolute_import
 
 import time
-import datetime as dt
 
 from ligmos.workers import connSetup
 
-from ultimonitor import apitools as api
 from ultimonitor import confparser, printer
 
 
-def startCollections(cDict, db=None, loopTime=60):
+def startCollections(printerip, db=None, loopTime=30):
     """
     """
-    # Temperature timestamps are in seconds since boot ... kinda.
-    #   It *looks* like Ultimaker uses time.monotonic() in a lot of places,
-    #   and the reference point for that is *technically* undefined according
-    #   to the python docs; in practice it's probably close enough, though
-    #   it's worth noting that it's *immune* to NTP updates and system
-    #   clock changes in general.
-    uptimeSec = api.queryChecker(cDict['printer'].ip, "/system/uptime")
-    if uptimeSec != {}:
-        # You may be tempted to choose .utcnow() instead of now(); but,
-        #   that'd be a mistake.  Influx tries to be fancy for you,
-        #   so it's easier to just get the regular time and hope for the best
-        #   Otherwise you'll be tracing UTC offsets in the dashboard(s)
-        #   for literally ever, which is the worst.
-        boottimeUTC = dt.datetime.now() - dt.timedelta(seconds=uptimeSec)
-    else:
-        boottimeUTC = None
 
     while True:
         # Do a check of everything we care about
-        stats = printer.statusCheck(cDict['printer'].ip)
+        stats = printer.statusCheck(printerip)
 
         # Did our status check work?
         if stats != {}:
-            # Collect the temperatures
-            tempPkts = printer.tempFlow(cDict['printer'].ip,
-                                        timeoffset=boottimeUTC)
+            # Collect the temperatures. Remember: nsamps should be slightly
+            #   greater than 10xloopTime since the sample rate is 10 Hz
+            tempPkts = printer.tempFlow(printerip, nsamps=450)
 
             # Collect the overall system info
-            sysPkts = printer.systemStats(cDict['printer'].ip)
+            sysPkts = printer.systemStats(printerip)
 
             if db is not None:
                 if tempPkts != []:
@@ -96,4 +78,5 @@ if __name__ == "__main__":
     db = connSetup.connIDB({'database': cDict['database']})['database']
     db.tablename = "um3e"
 
-    startCollections(cDict, db=db)
+    printerip = cDict['printerSetup'].ip
+    startCollections(printerip, db=db)
