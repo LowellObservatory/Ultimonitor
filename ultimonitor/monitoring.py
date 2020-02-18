@@ -17,8 +17,7 @@ from __future__ import division, print_function, absolute_import
 
 import time
 
-import leds
-import printer
+from . import leds, printer
 from . import email as emailHelper
 
 
