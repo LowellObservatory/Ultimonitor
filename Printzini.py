@@ -25,9 +25,11 @@ if __name__ == "__main__":
     cDict = confparser.parseConf(conffile)
 
     # A quick way to disable stuff while debugging
-    squashEmail = True
-    squashPiCam = True
-    squashUltiCam = True
+    #   These need to be moved out to the config file
+    #   (or, I just need to verify that the 'enable' keys work there)
+    squashEmail = False
+    squashPiCam = False
+    squashUltiCam = False
 
     # These are our color options, given as a dict of color names and their
     #   associated HSV (!NOT RGB!) properties which are actually sent to the
