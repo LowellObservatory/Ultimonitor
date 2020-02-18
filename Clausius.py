@@ -50,7 +50,10 @@ def startCollections(printerip, db=None, loopTime=30):
                                         timeprec='ms')
                     except Exception as e:
                         # Errors seen so far:
-                        # influxdb.exceptions.InfluxDBServerError
+                        #   influxdb.exceptions.InfluxDBServerError
+                        # (My) error strings caught elsewhere:
+                        #   Authentication error!
+                        #   INFLUXDB ERROR
                         print("DATABASE COMMIT ERROR!")
                         print(str(e))
                 if sysPkts != []:
@@ -75,8 +78,7 @@ if __name__ == "__main__":
 
     # Set up our database object
     #   With contortions because I'm not using my own API in the usual way
-    db = connSetup.connIDB({'database': cDict['database']})['database']
-    db.tablename = "um3e"
+    db = connSetup.connIDB({'database': cDict['databaseSetup']})['database']
 
     printerip = cDict['printerSetup'].ip
     startCollections(printerip, db=db)

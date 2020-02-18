@@ -36,20 +36,27 @@ def parseConf(confName):
 
     returnable = {}
     for section in expectedSectionNames:
+        # By default we only store the keys specified in the class.
+        #   But of course there are exceptions, mainly due to laziness
+        #   and deadlines
+        backfill = False
         if section == 'printerSetup':
             clstype = classes.threeDimensionalPrinter
         elif section == 'email':
             clstype = classes.emailSNMP
+            backfill = True
         elif section == 'picam':
             clstype = classes.piCamSettings
         elif section == 'databaseSetup':
             clstype = ligmosclass.baseTarget
+            backfill = True
         else:
             clstype = None
 
         if clstype is not None:
             try:
-                actualConfig = confUtils.assignConf(eConf[section], clstype)
+                actualConfig = confUtils.assignConf(eConf[section], clstype,
+                                                    backfill=backfill)
                 if section == 'email':
                     # Read in the footer file as a text string
                     try:

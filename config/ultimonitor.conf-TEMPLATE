@@ -7,16 +7,21 @@ enabled=True
 
 
 [databaseSetup]
-type=influxdb
-host=dbhostname
-port=8086
-user=None
-enabled=True
+type = influxdb
+host = dbhostname
+port = 8086
+user = None
+password = None
+tablename = YourTableName
+enabled = True
 
 
 [email]
-smtpserver = ip.or.hostname
-fromaddr = printzini@address.domain
+host = ip.or.hostname
+port = 465
+user = None
+password = None
+fromname = printzini@address.domain
 toaddr = email@address.domain
 footer = footer.txt
 enabled=True

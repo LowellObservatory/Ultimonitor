@@ -21,7 +21,7 @@ class emailSNMP(object):
         self.host = None
         self.port = 465
         self.user = None
-        self.passw = None
+        self.password = None
         self.fromname = None
         self.toaddr = None
         self.footer = None
