@@ -1,13 +1,31 @@
 [printerSetup]
 ip = ip.or.hostname
+type = printerBrandModel
 apiid = 8675309
 apikey = 867530986753098675309
+enabled=True
+
+
+[databaseSetup]
+type = influxdb
+host = dbhostname
+port = 8086
+user = None
+password = None
+tablename = YourTableName
+enabled = True
+
 
 [email]
-smtpserver = ip.or.hostname
-fromaddr = printzini@address.domain
+host = ip.or.hostname
+port = 465
+user = None
+password = None
+fromname = printzini@address.domain
 toaddr = email@address.domain
 footer = footer.txt
+enabled=True
+
 
 [picam]
 # resolution = [2592, 1944]
@@ -20,3 +38,4 @@ exposure_mode = night
 meter_mode = matrix
 exposure_compensation = 25
 image_denoise = False
+enabled=True

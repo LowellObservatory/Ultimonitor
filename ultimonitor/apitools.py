@@ -76,6 +76,7 @@ def queryChecker(printerip, endpoint, goodStat=200, fill=None, debug=False):
         if req.status_code == goodStat:
             req = json.loads(req.content)
         else:
+            # NOTE: You'll get in here if an endpoint responds 404
             req = {}
 
     if req == {} and fill is not None:

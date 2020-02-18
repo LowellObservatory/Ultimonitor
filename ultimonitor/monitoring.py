@@ -4,7 +4,7 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-#  Created on 17 Aug 2019
+#  Created on 18 Feb 2020
 #
 #  @author: rhamilton
 
@@ -17,7 +17,9 @@ from __future__ import division, print_function, absolute_import
 
 import time
 
-from ultimonitor import confparser, printer, email, leds
+import leds
+import printer
+from . import email as emailHelper
 
 
 def checkJob(stats, pJob, notices):
@@ -41,80 +43,80 @@ def checkJob(stats, pJob, notices):
     return stats, notices
 
 
-def setupStats(stats):
+def idbTempQuery():
     """
     """
-    # Clear our temperature stats
-    #   I know, I know, this sucks. This is a prototype!
-    tstats = {"Temperature0": {"median": [],
-                               "stddev": [],
-                               "deltaavg": [],
-                               "deltamin": [],
-                               "deltamax": [],
-                               "deltastd": []},
-              "Temperature1": {"median": [],
-                               "stddev": [],
-                               "deltaavg": [],
-                               "deltamin": [],
-                               "deltamax": [],
-                               "deltastd": []},
-              "Bed": {"median": [],
-                      "stddev": [],
-                      "deltaavg": [],
-                      "deltamin": [],
-                      "deltamax": [],
-                      "deltastd": []},
-              "CalculationTime": 0.
-              }
-
-    # Print the status to the log, but also get a string
-    #   representation that can be sent via email
-    strStatus = printer.formatStatus(stats)
-    print(strStatus)
-
-    return tstats, strStatus
+    pass
 
 
-if __name__ == "__main__":
-    conffile = 'ultimonitor.conf'
-    cDict = confparser.parseConf(conffile)
-
-    # A quick way to disable email alerts; should put this in the config?
-    emailSquasher = False
-
-    # This provides a map between the colors defined above and the
-    #   actual values that the Ulimaker 3 Extended may return while printing
-    #   or just in general. If printing, the printing status is used, but
-    #   this is a dict of all status values that I could figure out
-    hsvCols = leds.pallettBobRoss()
-    statusColors = {"idle": "PrussianBlue",
-                    "printing": "TitaniumWhite",
-                    "pausing": "IndianYellow",
-                    "paused": "CadmiumYellow",
-                    "resuming": "IndianYellow",
-                    "pre_print": "SapGreen",
-                    "post_print": "BrightBlue",
-                    "wait_cleanup": "BrightGreen",
-                    "error": "BrightRed",
-                    "maintenance": "CadmiumYellow",
-                    "booting": "PhthaloGreen"}
-
-    # Default sleep interval of 1 minute
-    interval = 1.*60.
-
+def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
+                     squashEmail=False, squashPiCam=False,
+                     squashUltiCam=False):
+    """
+    """
     # Initial parameters to compare against
     pJob = {"JobParameters": {"UUID": 8675309}}
     curProg = -9999
     prevProg = -9999
     notices = None
 
+    # Some renames, also some debugging and squashing of stuff
+    printerip = cDict['printerSetup'].ip
+    email = None
+    if squashEmail is False:
+        email = cDict['email']
+    picam = None
+    if squashPiCam is False:
+        picam = cDict['picam']
+    ulticam = None
+    if squashUltiCam is False:
+        ulticam = cDict['printerSetup']
+
     while True:
         # Do a check of everything we care about
-        stats = printer.statusCheck(cDict['printer'].ip)
+        stats = printer.statusCheck(printerip)
 
         # Did our status check work?
         if stats != {}:
-            # Is there an active print job?
+            # The "printer/status" endpoint is pretty terse, but the
+            #   "printer/diagnostics/temperature_flow" endpoint is both
+            #   highly detailed (sampled ~10 Hz) and highly specific
+            #   with it's "active_hotend_or_state" parameter. Use that.
+
+            # This returns a list of influxdb structured packets; since we
+            #   only have one sample, it's a list with len() == 1
+            singleFlow = printer.tempFlow(printerip, nsamps=1)[0]
+            flowState = singleFlow['fields']['active_hotend_or_state']
+            flowStateWords = statusMap[flowState]
+            print()
+            print("flowState: %s" % (flowStateWords))
+            print("/printer/state: %s" % (stats['Status']))
+            # If we're not actually printing, it won't be possible to get
+            #   the state from the print_job endpoint because it'll be blank!
+            if stats['JobParameters'] != {}:
+                printjobState = stats['JobParameters']['JobState']
+                print("/print_job/state: %s" % (printjobState))
+            print()
+
+            # We have to do a check in two parts, because some states are from
+            #   the lower level printer firmware and some states are from the
+            #   higher level Ultimaker software
+            if stats['Status'] in ['error', 'maintenance', 'booting']:
+                actualStatus = stats['Status']
+            else:
+                # Use the lower level status since it's more detailed
+                actualStatus = flowStateWords
+
+            # Only attempt to change the LED colors if we have a valid status
+            if actualStatus.lower() != 'unknown':
+                # NOTE: Pass in the entire printer configuration since
+                #   this is a PUT action and needs API authentication.
+                #   Use actualStatus to capture the full range of states
+                leds.ledCheck(cDict['printerSetup'],
+                              statusColors, actualStatus)
+
+            # Trigger on the high level status here so I don't have to deal
+            #   *all* the possibilities of the low level one
             if stats['Status'] == 'printing':
                 # Check if this job is the same as the last job we saw
                 pJob, notices = checkJob(stats, pJob, notices)
@@ -126,37 +128,39 @@ if __name__ == "__main__":
 
                 # Collect the temperature statistics, but only bother if
                 #   we're actually in progress. I set the threshold
-                #   to be > 0.5 so the extruders and bed should already
-                #   be self-regulating, but if it takes < 1 minute to get
-                #   to this percentage complete, they'll still have big
-                #   deviations. Oh well.
+                #   to be > 0.5 so the extruders and bed *should* be
+                #   regulated already
                 msg = None
                 deets = None
                 noteKey = None
                 emailFlag = False
 
-                # TODO: Figure out if I can just get the "preprint" status
-                #   change and then trigger based on that. I forget the
-                #   details, though.
-                if notices['preamble'] is False:
-                    print("Collecting print setup information ...")
-                    tstats, strStatus = setupStats(stats)
-                    notices['preamble'] = True
+                # Only grab info when we're really printing.
+                #   'pre_print' is too early and duration will be missing
+                if actualStatus is 'printing':
+                    if notices['preamble'] is False:
+                        print("Collecting print setup information ...")
+                        strStatus = printer.formatStatus(stats)
+                        notices['preamble'] = True
 
-                if curProg > 0.5 and curProg < 100.:
-                    # Grab our temperature metrics
-                    retTemps = printer.tempStats(cDict['printer'].ip)
-                    tstats, dstats = printer.collapseStats(retTemps,
-                                                           tstats)
-                    deets = printer.formatStatus(dstats)
-
+                    retTemps = {}
+                    deets = ""
+                    #
+                    # Grab our temperature metrics from the storage
+                    #   database that was specified
+                    #
+                    # retTemps = printer.tempStats(cDict['printer'].ip)
+                    # tstats, dstats = printer.collapseStats(retTemps,
+                    #                                        tstats)
+                    # deets = printer.formatStatus(dstats)
+                    #
                     if retTemps == {}:
-                        deets = "Unfortunately, the printer was unavailable"
+                        deets = "Unfortunately, the database was unavailable"
                         deets += " when temperature statistics were queried."
                         deets += "\n\nThat's probably not a good thing, but "
                         deets += "it could just mean that the network "
                         deets += "was interrupted unexpectedly. You should "
-                        deets += "probably check on the printer!"
+                        deets += "probably check on stuff!"
 
                     # Decision tree time!
                     if curProg >= 0. and notices['start'] is False:
@@ -165,8 +169,8 @@ if __name__ == "__main__":
                         noteKey = 'start'
                         emailFlag = True
                         # The first time thru gets a more detailed header, that
-                        #   we actually already set above. We're just overriding
-                        #   the shortened version here
+                        #   we actually already set above. We're just
+                        #   overloading the shortened version here
                         deets = strStatus
 
                     elif curProg >= 10. and notices['done10'] is False:
@@ -201,12 +205,12 @@ if __name__ == "__main__":
                             # This means when we started, the print was done!
                             #   Don't do anything in this case.
                             print("Job %s is 100%% complete already..." %
-                                (stats['JobParameters']['UUID']), end='')
+                                  (stats['JobParameters']['UUID']), end='')
                             print("Awaiting job cleanup...")
                             print("Skipping notification for job completion")
                             emailFlag = False
 
-                        # This state also means that we have no temp. statistics
+                        # This state also means that we have no temp. stats.
                         #   to report, so set the details string empty
                         deets = ""
 
@@ -214,17 +218,19 @@ if __name__ == "__main__":
                 if noteKey is not None:
                     notices[noteKey] = True
                     print(deets)
-                    if emailFlag is True and emailSquasher is False:
+                    if emailFlag is True:
                         print(noteKey)
                         print(notices[noteKey])
                         print(notices)
-                        msg = email.makeEmailUpdate(noteKey,
-                                                    curJobID,
-                                                    curJobName,
-                                                    deets, cDict['email'],
-                                                    picam=cDict['rpicamera'],
-                                                    ulticam=cDict['printer'])
-                        email.sendMail(msg, smtploc=cDict['email'].smtpserver)
+                        msg = emailHelper.makeEmailUpdate(noteKey,
+                                                          curJobID,
+                                                          curJobName,
+                                                          deets, email,
+                                                          picam=picam,
+                                                          ulticam=ulticam)
+                        # If squashEmail is True, email will be None
+                        if email is not None:
+                            emailHelper.sendMail(msg, smtploc=email.host)
 
                 # Need this to set the LED color appropriately
                 actualStatus = stats['JobParameters']['JobState']
@@ -233,19 +239,10 @@ if __name__ == "__main__":
                 print("Previous Progress: ", prevProg)
                 print("Current Progress: ", curProg)
                 prevProg = curProg
-
-            else:
-                # This is if we're not printing, the printer will have a
-                #   different status. Just store it so we can set LED
-                #   colors appropriately
-                actualStatus = stats['Status']
-
-            # Only attempt to change the LED colors if we have a valid status
-            if actualStatus.lower() != 'unknown':
-                leds.ledCheck(cDict['printer'], hsvCols,
-                              statusColors, actualStatus)
         else:
             print("PRINTER UNREACHABLE!")
 
-        print("Sleeping for %f seconds..." % (interval))
-        time.sleep(interval)
+        # Take a nap in our infinite loop
+        print("Sleeping for %f seconds..." % (loopInterval))
+        for _ in range(int(loopInterval)):
+            time.sleep(1)

@@ -72,12 +72,12 @@ def pallettBobRoss():
     return hsvHappyColors
 
 
-def ledCheck(printerConfig, hsvColors, statusColors, statusStr):
+def ledCheck(printerConfig, statusColors, statusStr):
     """
     """
     # Checking/setting status LED colors
     actualLED = api.queryChecker(printerConfig.ip, "printer/led")
-    desiredLED = hsvColors[statusColors[statusStr]]
+    desiredLED = statusColors[statusStr]
 
     ledChange = False
     # I can evantually just collapse this if I explicitly remove

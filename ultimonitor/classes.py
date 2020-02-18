@@ -18,16 +18,23 @@ from __future__ import division, print_function, absolute_import
 
 class emailSNMP(object):
     def __init__(self):
-        self.smtpserver = None
-        self.fromaddr = None
+        self.host = None
+        self.port = 465
+        self.user = None
+        self.password = None
+        self.fromname = None
         self.toaddr = None
+        self.footer = None
+        self.enabled = True
 
 
-class ultimaker3e(object):
+class threeDimensionalPrinter(object):
     def __init__(self):
         self.ip = None
+        self.type = None
         self.apiid = None
         self.apikey = None
+        self.enabled = True
 
 
 class piCamSettings(object):
@@ -41,3 +48,4 @@ class piCamSettings(object):
         self.meter_mode = 'matrix'
         self.exposure_compensation = 25
         self.image_denoise = False
+        self.enabled = True
