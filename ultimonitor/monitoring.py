@@ -16,9 +16,10 @@ Further description.
 from __future__ import division, print_function, absolute_import
 
 import time
+from datetime import datetime as dt
 
-from . import leds, printer
 from . import email as emailHelper
+from . import leds, printer, classes
 
 
 def checkJob(stats, pJob, notices):
@@ -27,6 +28,18 @@ def checkJob(stats, pJob, notices):
     # Is this the same job we saw last time in the loop?
     if stats['JobParameters']['UUID'] != pJob['JobParameters']['UUID']:
         print("New job found!")
+        thisJob = classes.jobInProgress()
+
+        # We store the reported start timestamp, even though
+        #   it can be extremely wrong if the printer is turned on and
+        #   can't get any internet access, which causes NTP to fail.
+        #
+        # Convert this into a comparable datetime object. Assume
+        #   that it's UTC, because this is science god damn it.
+        reportedTime = stats['JobParameters']['TimeStart']
+        thisJob.reportedTime = dt.strptime(reportedTime,
+                                           "%Y-%m-%dT%H:%M:%S")
+        thisJob.foundTime = dt.utcnow()
 
         # Set this job as the one to watch now
         pJob = stats
@@ -229,7 +242,11 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
                                                           ulticam=ulticam)
                         # If squashEmail is True, email will be None
                         if email is not None:
-                            emailHelper.sendMail(msg, smtploc=email.host)
+                            emailHelper.sendMail(msg,
+                                                 smtploc=email.host,
+                                                 port=email.port,
+                                                 user=email.user,
+                                                 passw=email.password)
 
                 # Need this to set the LED color appropriately
                 actualStatus = stats['JobParameters']['JobState']

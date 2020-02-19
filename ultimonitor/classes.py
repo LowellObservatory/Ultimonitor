@@ -16,6 +16,24 @@ Further description.
 from __future__ import division, print_function, absolute_import
 
 
+class jobInProgress(object):
+    def __init__(self):
+        self.foundTime = None
+        self.reportedTime = None
+        self.printSetup = None
+        self.notices = {"preamble": False,
+                        "start": False,
+                        "done10": False,
+                        "done50": False,
+                        "done90": False,
+                        "completed": False}
+        self.jobname = None
+        self.uuid = None
+        self.time_elapsed = None
+        self.time_total = None
+        self.progress = None
+
+
 class emailSNMP(object):
     def __init__(self):
         self.host = None
