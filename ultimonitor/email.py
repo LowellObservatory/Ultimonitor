@@ -107,7 +107,7 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
     # First make sure we have at least a null string for the
     #   standard footer that is included with every email
     if emailConfig is not None:
-        eFrom = emailConfig.fromaddr
+        eFrom = emailConfig.fromname
         eTo = emailConfig.toaddr
 
         # Read in the footer, if there is one
