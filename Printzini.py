@@ -38,8 +38,12 @@ if __name__ == "__main__":
 
     # The numerical codes are seen in "printer/diagnostics/temperature_flow/"
     #   See also: griffin/printer/drivers/marlin/applicationLayer.py
-    # TODO: Figure out if there are additional valid states in 1 thru 9
+    #
+    # When printing, 0 denotes hotend #1 and 1 denotes hotend #2. We
+    #   can just simplify things and call both "printing" for now
+    # TODO: Figure out if there are additional valid states in 2 thru 9
     flowStateMap = {0: 'printing',
+                    1: 'printing',
                     10: 'idle',
                     11: 'pausing',
                     12: 'paused',

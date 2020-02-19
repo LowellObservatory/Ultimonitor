@@ -107,7 +107,7 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
     # First make sure we have at least a null string for the
     #   standard footer that is included with every email
     if emailConfig is not None:
-        eFrom = emailConfig.fromname
+        eFrom = emailConfig.user
         eTo = emailConfig.toaddr
 
         # Read in the footer, if there is one
@@ -150,7 +150,8 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
         body += footer
         body += "\n\nYour 3D pal, \nThe Great Printzini"
 
-        msg = constructMail(subject, body, eFrom, eTo)
+        msg = constructMail(subject, body, eFrom, eTo,
+                            fromname=emailConfig.fromname)
 
         # Now grab and attach the images, if they were requested
         if ulticam is not None:
