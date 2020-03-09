@@ -22,6 +22,88 @@ from . import email as emailHelper
 from . import leds, printer, classes
 
 
+def notificationTree(stats, notices, curProg, prevProg):
+    """
+    """
+    if notices['preamble'] is False:
+        print("Collecting print setup information ...")
+        strStatus = printer.formatStatus(stats)
+        notices['preamble'] = True
+
+    retTemps = {}
+    deets = ""
+    #
+    # Grab our temperature metrics from the storage
+    #   database that was specified
+    #
+    # retTemps = printer.tempStats(cDict['printer'].ip)
+    # tstats, dstats = printer.collapseStats(retTemps,
+    #                                        tstats)
+    # deets = printer.formatStatus(dstats)
+    #
+    if retTemps == {}:
+        deets = "Unfortunately, the database was unavailable"
+        deets += " when temperature statistics were queried."
+        deets += "\n\nThat's probably not a good thing, but "
+        deets += "it could just mean that the network "
+        deets += "was interrupted unexpectedly. You should "
+        deets += "probably check on stuff!"
+
+    # Decision tree time!
+    if curProg >= 0. and notices['start'] is False:
+        print("Notify that the print is started")
+        print("Collect the vital statistics")
+        noteKey = 'start'
+        emailFlag = True
+        # The first time thru gets a more detailed header, that
+        #   we actually already set above. We're just
+        #   overloading the shortened version here
+        deets = strStatus
+
+    elif curProg >= 10. and notices['done10'] is False:
+        print("Notify that the print is 10%% done")
+        noteKey = 'done10'
+        emailFlag = True
+
+    elif curProg >= 50. and notices['done50'] is False:
+        print("Notify that the print is 50%% done")
+        noteKey = 'done50'
+        emailFlag = True
+
+    elif curProg >= 90. and notices['done90'] is False:
+        print("Notify that the print is 90%% done")
+        noteKey = 'done90'
+        emailFlag = True
+
+    elif curProg == 100. and notices['end'] is False:
+        print("Notify that the print is done")
+        noteKey = 'end'
+        emailFlag = True
+
+        # In addition to the temperature performance,
+        #   add in the print duration as well.
+        print("Job %s is %f %% complete" %
+              (stats['JobParameters']['UUID'],
+               stats['JobParameters']['Progress']))
+        print("State: %s" %
+              (stats['JobParameters']['JobState']))
+
+        if prevProg == -9999 or prevProg == 100.:
+            # This means when we started, the print was done!
+            #   Don't do anything in this case.
+            print("Job %s is 100%% complete already..." %
+                  (stats['JobParameters']['UUID']), end='')
+            print("Awaiting job cleanup...")
+            print("Skipping notification for job completion")
+            emailFlag = False
+
+        # This state also means that we have no temp. stats.
+        #   to report, so set the details string empty
+        deets = ""
+
+        return emailFlag, noteKey, deets
+
+
 def checkJob(stats, pJob, notices):
     """
     """
@@ -62,7 +144,9 @@ def idbTempQuery():
 
 
 def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
-                     squashEmail=False, squashPiCam=False,
+                     runner=None,
+                     squashEmail=False,
+                     squashPiCam=False,
                      squashUltiCam=False):
     """
     """
@@ -84,7 +168,8 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
     if squashUltiCam is False:
         ulticam = cDict['printerSetup']
 
-    while True:
+    # We use runner here to exit in a sensible way if any signals come up
+    while runner.halt is False:
         # Do a check of everything we care about
         stats = printer.statusCheck(printerip)
 
@@ -150,81 +235,10 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
                 # Only grab info when we're really printing.
                 #   'pre_print' is too early and duration will be missing
                 if actualStatus is 'printing':
-                    if notices['preamble'] is False:
-                        print("Collecting print setup information ...")
-                        strStatus = printer.formatStatus(stats)
-                        notices['preamble'] = True
-
-                    retTemps = {}
-                    deets = ""
-                    #
-                    # Grab our temperature metrics from the storage
-                    #   database that was specified
-                    #
-                    # retTemps = printer.tempStats(cDict['printer'].ip)
-                    # tstats, dstats = printer.collapseStats(retTemps,
-                    #                                        tstats)
-                    # deets = printer.formatStatus(dstats)
-                    #
-                    if retTemps == {}:
-                        deets = "Unfortunately, the database was unavailable"
-                        deets += " when temperature statistics were queried."
-                        deets += "\n\nThat's probably not a good thing, but "
-                        deets += "it could just mean that the network "
-                        deets += "was interrupted unexpectedly. You should "
-                        deets += "probably check on stuff!"
-
-                    # Decision tree time!
-                    if curProg >= 0. and notices['start'] is False:
-                        print("Notify that the print is started")
-                        print("Collect the vital statistics")
-                        noteKey = 'start'
-                        emailFlag = True
-                        # The first time thru gets a more detailed header, that
-                        #   we actually already set above. We're just
-                        #   overloading the shortened version here
-                        deets = strStatus
-
-                    elif curProg >= 10. and notices['done10'] is False:
-                        print("Notify that the print is 10%% done")
-                        noteKey = 'done10'
-                        emailFlag = True
-
-                    elif curProg >= 50. and notices['done50'] is False:
-                        print("Notify that the print is 50%% done")
-                        noteKey = 'done50'
-                        emailFlag = True
-
-                    elif curProg >= 90. and notices['done90'] is False:
-                        print("Notify that the print is 90%% done")
-                        noteKey = 'done90'
-                        emailFlag = True
-
-                    elif curProg == 100. and notices['end'] is False:
-                        print("Notify that the print is done")
-                        noteKey = 'end'
-                        emailFlag = True
-
-                        # In addition to the temperature performance,
-                        #   add in the print duration as well.
-                        print("Job %s is %f %% complete" %
-                              (stats['JobParameters']['UUID'],
-                               stats['JobParameters']['Progress']))
-                        print("State: %s" %
-                              (stats['JobParameters']['JobState']))
-
-                        if prevProg == -9999 or prevProg == 100.:
-                            # This means when we started, the print was done!
-                            #   Don't do anything in this case.
-                            print("Job %s is 100%% complete already..." %
-                                  (stats['JobParameters']['UUID']), end='')
-                            print("Awaiting job cleanup...")
-                            print("Skipping notification for job completion")
-                            emailFlag = False
-
-                        # This state also means that we have no temp. stats.
-                        #   to report, so set the details string empty
-                        deets = ""
+                    emailFlag, noteKey, deets = notificationTree(stats,
+                                                                 notices,
+                                                                 curProg,
+                                                                 prevProg)
 
                 # Now check the states that we could have gotten into
                 if noteKey is not None:
@@ -259,6 +273,10 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
             print("PRINTER UNREACHABLE!")
 
         # Take a nap in our infinite loop
-        print("Sleeping for %f seconds..." % (loopInterval))
-        for _ in range(int(loopInterval)):
-            time.sleep(1)
+        if runner.halt is False:
+            print("Sleeping for %d seconds..." % (int(loopInterval)))
+            # Sleep for bigsleep, but in small chunks to check abort
+            for _ in range(int(loopInterval)):
+                time.sleep(1)
+                if runner.halt is True:
+                    break

@@ -16,12 +16,15 @@ Also supports a Raspberry Pi camera to take additional pictures of the print.
 
 from __future__ import division, print_function, absolute_import
 
+from ligmos import utils
+
 from ultimonitor import confparser
 from ultimonitor import leds, monitoring
 
 
-if __name__ == "__main__":
-    conffile = './config/ultimonitor.conf'
+def main(conffile):
+    """
+    """
     cDict = confparser.parseConf(conffile)
 
     # A quick way to disable stuff while debugging
@@ -69,9 +72,21 @@ if __name__ == "__main__":
                     "maintenance": hsvCols["CadmiumYellow"],
                     "booting": hsvCols["PhthaloGreen"]}
 
+    # Start logging to a file
+    utils.logs.setup_logging(logName="./logs/printzini.txt", nLogs=10)
+
+    # Set up our signal
+    runner = utils.common.HowtoStopNicely()
+
     # Actually monitor
     monitoring.monitorUltimaker(cDict, flowStateMap, statusColors,
+                                runner=runner,
                                 loopInterval=30,
                                 squashEmail=squashEmail,
                                 squashPiCam=squashPiCam,
                                 squashUltiCam=squashUltiCam)
+
+
+if __name__ == "__main__":
+    conffile = './config/ultimonitor.conf'
+    main(conffile)
