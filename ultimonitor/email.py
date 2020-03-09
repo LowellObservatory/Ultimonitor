@@ -17,6 +17,7 @@ import ssl
 import imghdr
 import socket
 import smtplib
+import requests.exceptions as rqex
 from email.message import EmailMessage
 
 from . import cameras
@@ -156,7 +157,12 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
         # Now grab and attach the images, if they were requested
         if ulticam is not None:
             # It's really just an http GET request so it's easy
-            img = cameras.grab_ultimaker(ulticam.ip)
+            try:
+                img = cameras.grab_ultimaker(ulticam.ip)
+            except rqex.ReadTimeout:
+                print("Ultimaker camera failed to respond!")
+                print("Badness 10000")
+                img = None
             if img is not None:
                 # Attach it to the message
                 msg.add_attachment(img.content, maintype='image',
