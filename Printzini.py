@@ -86,6 +86,8 @@ def main(conffile):
                                 squashPiCam=squashPiCam,
                                 squashUltiCam=squashUltiCam)
 
+    print("Printzini has exited normally!  Enjoy the world of 3D.")
+
 
 if __name__ == "__main__":
     conffile = './config/ultimonitor.conf'
