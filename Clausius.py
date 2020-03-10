@@ -20,16 +20,17 @@ from __future__ import division, print_function, absolute_import
 
 import time
 
+import ligmos.utils as utils
 from ligmos.workers import connSetup
 
 from ultimonitor import confparser, printer
 
 
-def startCollections(printerip, db=None, loopTime=30):
+def startCollections(printerip, runner, db=None, loopInterval=30):
     """
     """
 
-    while True:
+    while runner.halt is False:
         # Do a check of everything we care about
         stats = printer.statusCheck(printerip)
 
@@ -67,18 +68,31 @@ def startCollections(printerip, db=None, loopTime=30):
                         print("DATABASE COMMIT ERROR!")
                         print(str(e))
 
-        print("Sleeping for %f ..." % (loopTime))
-        for _ in range(int(loopTime)):
-            time.sleep(1)
+        # Take a nap in our infinite loop
+        if runner.halt is False:
+            print("Sleeping for %d seconds..." % (int(loopInterval)))
+            # Sleep for bigsleep, but in small chunks to check abort
+            for _ in range(int(loopInterval)):
+                time.sleep(1)
+                if runner.halt is True:
+                    break
 
 
 if __name__ == "__main__":
     conffile = './config/ultimonitor.conf'
     cDict = confparser.parseConf(conffile)
 
+    # Start logging to a file
+    utils.logs.setup_logging(logName="./logs/printzini.txt", nLogs=10)
+
+    # Set up our signal
+    runner = utils.common.HowtoStopNicely()
+
     # Set up our database object
     #   With contortions because I'm not using my own API in the usual way
     db = connSetup.connIDB({'database': cDict['databaseSetup']})['database']
 
     printerip = cDict['printerSetup'].ip
-    startCollections(printerip, db=db)
+    startCollections(printerip, runner, db=db)
+
+    print("Clausius has exited!")
