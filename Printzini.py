@@ -79,8 +79,7 @@ def main(conffile):
     runner = utils.common.HowtoStopNicely()
 
     # Actually monitor
-    monitoring.monitorUltimaker(cDict, flowStateMap, statusColors,
-                                runner=runner,
+    monitoring.monitorUltimaker(cDict, flowStateMap, statusColors, runner,
                                 loopInterval=30,
                                 squashEmail=squashEmail,
                                 squashPiCam=squashPiCam,

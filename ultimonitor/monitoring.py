@@ -145,8 +145,8 @@ def idbTempQuery():
     pass
 
 
-def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
-                     runner=None,
+def monitorUltimaker(cDict, statusMap, statusColors, runner,
+                     loopInterval=30,
                      squashEmail=False,
                      squashPiCam=False,
                      squashUltiCam=False):
