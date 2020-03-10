@@ -18,6 +18,8 @@ from __future__ import division, print_function, absolute_import
 import time
 from datetime import datetime as dt
 
+import johnnyfive as j5
+
 from . import email as emailHelper
 from . import leds, printer, classes
 
@@ -254,13 +256,14 @@ def monitorUltimaker(cDict, statusMap, statusColors, loopInterval=30,
                                                           deets, email,
                                                           picam=picam,
                                                           ulticam=ulticam)
+
                         # If squashEmail is True, email will be None
                         if email is not None:
-                            emailHelper.sendMail(msg,
-                                                 smtploc=email.host,
-                                                 port=email.port,
-                                                 user=email.user,
-                                                 passw=email.password)
+                            j5.email.sendMail(msg,
+                                              smtploc=email.host,
+                                              port=email.port,
+                                              user=email.user,
+                                              passw=email.password)
 
                 # Need this to set the LED color appropriately
                 actualStatus = stats['JobParameters']['JobState']
