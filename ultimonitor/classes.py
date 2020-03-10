@@ -34,18 +34,6 @@ class jobInProgress(object):
         self.progress = None
 
 
-class emailSNMP(object):
-    def __init__(self):
-        self.host = None
-        self.port = 465
-        self.user = None
-        self.password = None
-        self.fromname = None
-        self.toaddr = None
-        self.footer = None
-        self.enabled = True
-
-
 class threeDimensionalPrinter(object):
     def __init__(self):
         self.ip = None

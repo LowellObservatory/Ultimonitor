@@ -15,6 +15,7 @@ Further description.
 
 from __future__ import division, print_function, absolute_import
 
+import johnnyfive as j5
 from ligmos.workers import confUtils
 from ligmos.utils import confparsers
 from ligmos.utils import classes as ligmosclass
@@ -43,7 +44,7 @@ def parseConf(confName):
         if section == 'printerSetup':
             clstype = classes.threeDimensionalPrinter
         elif section == 'email':
-            clstype = classes.emailSNMP
+            clstype = j5.classes.emailSNMP
             backfill = True
         elif section == 'picam':
             clstype = classes.piCamSettings
@@ -68,7 +69,7 @@ def parseConf(confName):
                 validSect = {section: actualConfig}
             except KeyError:
                 print("WARNING: MISSING EXPECTED CONFIGURATION SECTION!")
-                print("%s NOT FOUND OR NOT ENABLED IN %s" % \
+                print("%s NOT FOUND OR NOT ENABLED IN %s" %
                       (section, confName))
                 validSect = {section: None}
 
