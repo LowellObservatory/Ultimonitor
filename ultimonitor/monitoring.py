@@ -240,7 +240,9 @@ def monitorUltimaker(cDict, statusMap, statusColors, runner,
 
                 # Only grab info when we're really printing.
                 #   'pre_print' is too early and duration will be missing
-                if actualStatus is 'printing':
+                if actualStatus.lower() in ['printing',
+                                            'pausing', 'paused', 'resuming',
+                                            'post_print', 'wait_cleanup']:
                     emailFlag, noteKey, deets = notificationTree(stats,
                                                                  notices,
                                                                  curProg,
