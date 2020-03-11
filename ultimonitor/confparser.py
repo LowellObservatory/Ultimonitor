@@ -19,6 +19,7 @@ import johnnyfive as j5
 from ligmos.workers import confUtils
 from ligmos.utils import confparsers
 from ligmos.utils import classes as ligmosclass
+from picamhelpers import classes as picamclass
 
 from . import classes
 
@@ -47,7 +48,7 @@ def parseConf(confName):
             clstype = j5.classes.emailSNMP
             backfill = True
         elif section == 'picam':
-            clstype = classes.piCamSettings
+            clstype = picamclass.piCamSettings
         elif section == 'databaseSetup':
             clstype = ligmosclass.baseTarget
             backfill = True
