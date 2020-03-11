@@ -56,6 +56,7 @@ def notificationTree(stats, actualStatus, notices, curProg, prevProg):
         deets += "probably check on stuff!"
 
     # Decision tree time!
+    # Skip notifications if we already see a done print at startup
     if actualStatus.lower() in ['post_print', 'wait_cleanup']:
         if prevProg == -9999 or prevProg == 100.:
             # This means when we started, the print was done!
@@ -65,7 +66,23 @@ def notificationTree(stats, actualStatus, notices, curProg, prevProg):
             print("Awaiting job cleanup...")
             print("Skipping notification for job completion")
             emailFlag = False
+        else:
+            # This means that our loop didn't catch the end part, so
+            #   we trigger it manually here.  Probably a likely scenario.
+            if curProg == 100. and notices['end'] is False:
+                print("Notify that the print is done")
+                noteKey = 'end'
+                emailFlag = True
+
+                # In addition to the temperature performance,
+                #   add in the print duration as well.
+                print("Job %s is %f %% complete" %
+                    (stats['JobParameters']['UUID'],
+                    stats['JobParameters']['Progress']))
+                print("State: %s" %
+                    (stats['JobParameters']['JobState']))
     else:
+        # If we're still actually printing, we end up in here
         if curProg >= 0. and notices['start'] is False:
             print("Notify that the print is started")
             print("Collect the vital statistics")
