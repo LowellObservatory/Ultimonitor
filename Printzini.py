@@ -73,7 +73,7 @@ def main(conffile):
                     "booting": hsvCols["PhthaloGreen"]}
 
     # Start logging to a file
-    utils.logs.setup_logging(logName="./logs/printzini.txt", nLogs=10)
+    utils.logs.setup_logging(logName="./logs/printzini.log", nLogs=10)
 
     # Set up our signal
     runner = utils.common.HowtoStopNicely()

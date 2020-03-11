@@ -84,3 +84,4 @@ target/
 raspbian-lite_notes.txt
 footer.txt
 instasnap.jpg
+logs/*.log

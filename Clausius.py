@@ -83,7 +83,7 @@ if __name__ == "__main__":
     cDict = confparser.parseConf(conffile)
 
     # Start logging to a file
-    utils.logs.setup_logging(logName="./logs/clausius.txt", nLogs=10)
+    utils.logs.setup_logging(logName="./logs/clausius.logoooooooooolo;;;;;;;;;;lpo;;;;;.oppppp", nLogs=10)
 
     # Set up our signal
     runner = utils.common.HowtoStopNicely()
