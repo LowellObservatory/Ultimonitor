@@ -18,6 +18,7 @@ import imghdr
 import requests.exceptions as rqex
 
 import johnnyfive as j5
+import picamhelpers as pch
 
 from . import cameras
 
@@ -91,7 +92,8 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
                                    filename="UltimakerSideView.jpg")
 
         if picam is not None:
-            snapname = cameras.piCamCapture(picam)
+            outloc = "./"
+            snapname = pch.capture.piCamCapture(picam, picam.savepath)
 
             if snapname is not None:
                 with open(snapname, 'rb') as pisnap:

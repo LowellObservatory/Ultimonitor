@@ -38,4 +38,6 @@ exposure_mode = night
 meter_mode = matrix
 exposure_compensation = 25
 image_denoise = False
+savepath = ./
+interval = 42
 enabled=True

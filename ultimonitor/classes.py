@@ -41,17 +41,3 @@ class threeDimensionalPrinter(object):
         self.apiid = None
         self.apikey = None
         self.enabled = True
-
-
-class piCamSettings(object):
-    def __init__(self):
-        # Suitable for darker environments
-        self.resolution = [864, 648]
-        self.flipv = False
-        self.fliph = False
-        self.drc_strength = 'high'
-        self.exposure_mode = 'night'
-        self.meter_mode = 'matrix'
-        self.exposure_compensation = 25
-        self.image_denoise = False
-        self.enabled = True
