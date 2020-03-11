@@ -24,7 +24,7 @@ from . import email as emailHelper
 from . import leds, printer, classes
 
 
-def notificationTree(stats, notices, curProg, prevProg):
+def notificationTree(stats, actualStatus, notices, curProg, prevProg):
     """
     """
     if notices['preamble'] is False:
@@ -56,44 +56,7 @@ def notificationTree(stats, notices, curProg, prevProg):
         deets += "probably check on stuff!"
 
     # Decision tree time!
-    if curProg >= 0. and notices['start'] is False:
-        print("Notify that the print is started")
-        print("Collect the vital statistics")
-        noteKey = 'start'
-        emailFlag = True
-        # The first time thru gets a more detailed header, that
-        #   we actually already set above. We're just
-        #   overloading the shortened version here
-        deets = strStatus
-
-    elif curProg >= 10. and notices['done10'] is False:
-        print("Notify that the print is 10%% done")
-        noteKey = 'done10'
-        emailFlag = True
-
-    elif curProg >= 50. and notices['done50'] is False:
-        print("Notify that the print is 50%% done")
-        noteKey = 'done50'
-        emailFlag = True
-
-    elif curProg >= 90. and notices['done90'] is False:
-        print("Notify that the print is 90%% done")
-        noteKey = 'done90'
-        emailFlag = True
-
-    elif curProg == 100. and notices['end'] is False:
-        print("Notify that the print is done")
-        noteKey = 'end'
-        emailFlag = True
-
-        # In addition to the temperature performance,
-        #   add in the print duration as well.
-        print("Job %s is %f %% complete" %
-              (stats['JobParameters']['UUID'],
-               stats['JobParameters']['Progress']))
-        print("State: %s" %
-              (stats['JobParameters']['JobState']))
-
+    if actualStatus.lower() in ['post_print', 'wait_cleanup']:
         if prevProg == -9999 or prevProg == 100.:
             # This means when we started, the print was done!
             #   Don't do anything in this case.
@@ -102,10 +65,57 @@ def notificationTree(stats, notices, curProg, prevProg):
             print("Awaiting job cleanup...")
             print("Skipping notification for job completion")
             emailFlag = False
+    else:
+        if curProg >= 0. and notices['start'] is False:
+            print("Notify that the print is started")
+            print("Collect the vital statistics")
+            noteKey = 'start'
+            emailFlag = True
+            # The first time thru gets a more detailed header, that
+            #   we actually already set above. We're just
+            #   overloading the shortened version here
+            deets = strStatus
 
-        # This state also means that we have no temp. stats.
-        #   to report, so set the details string empty
-        deets = ""
+        elif curProg >= 10. and notices['done10'] is False:
+            print("Notify that the print is 10%% done")
+            noteKey = 'done10'
+            emailFlag = True
+
+        elif curProg >= 50. and notices['done50'] is False:
+            print("Notify that the print is 50%% done")
+            noteKey = 'done50'
+            emailFlag = True
+
+        elif curProg >= 90. and notices['done90'] is False:
+            print("Notify that the print is 90%% done")
+            noteKey = 'done90'
+            emailFlag = True
+
+        elif curProg == 100. and notices['end'] is False:
+            print("Notify that the print is done")
+            noteKey = 'end'
+            emailFlag = True
+
+            # In addition to the temperature performance,
+            #   add in the print duration as well.
+            print("Job %s is %f %% complete" %
+                (stats['JobParameters']['UUID'],
+                stats['JobParameters']['Progress']))
+            print("State: %s" %
+                (stats['JobParameters']['JobState']))
+
+            # if prevProg == -9999 or prevProg == 100.:
+            #     # This means when we started, the print was done!
+            #     #   Don't do anything in this case.
+            #     print("Job %s is 100%% complete already..." %
+            #           (stats['JobParameters']['UUID']), end='')
+            #     print("Awaiting job cleanup...")
+            #     print("Skipping notification for job completion")
+            #     emailFlag = False
+
+            # This state also means that we have no temp. stats.
+            #   to report, so set the details string empty
+            deets = ""
 
     return emailFlag, noteKey, deets
 
@@ -244,6 +254,7 @@ def monitorUltimaker(cDict, statusMap, statusColors, runner,
                                             'pausing', 'paused', 'resuming',
                                             'post_print', 'wait_cleanup']:
                     emailFlag, noteKey, deets = notificationTree(stats,
+                                                                 actualStatus,
                                                                  notices,
                                                                  curProg,
                                                                  prevProg)
