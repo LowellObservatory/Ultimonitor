@@ -77,10 +77,10 @@ def notificationTree(stats, actualStatus, notices, curProg, prevProg):
                 # In addition to the temperature performance,
                 #   add in the print duration as well.
                 print("Job %s is %f %% complete" %
-                    (stats['JobParameters']['UUID'],
-                    stats['JobParameters']['Progress']))
+                      (stats['JobParameters']['UUID'],
+                       stats['JobParameters']['Progress']))
                 print("State: %s" %
-                    (stats['JobParameters']['JobState']))
+                      (stats['JobParameters']['JobState']))
     else:
         # If we're still actually printing, we end up in here
         if curProg >= 0. and notices['start'] is False:
@@ -116,10 +116,10 @@ def notificationTree(stats, actualStatus, notices, curProg, prevProg):
             # In addition to the temperature performance,
             #   add in the print duration as well.
             print("Job %s is %f %% complete" %
-                (stats['JobParameters']['UUID'],
-                stats['JobParameters']['Progress']))
+                  (stats['JobParameters']['UUID'],
+                   stats['JobParameters']['Progress']))
             print("State: %s" %
-                (stats['JobParameters']['JobState']))
+                  (stats['JobParameters']['JobState']))
 
             # if prevProg == -9999 or prevProg == 100.:
             #     # This means when we started, the print was done!
