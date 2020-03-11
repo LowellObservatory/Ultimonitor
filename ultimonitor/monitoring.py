@@ -33,7 +33,11 @@ def notificationTree(stats, notices, curProg, prevProg):
         notices['preamble'] = True
 
     retTemps = {}
+
+    emailFlag = False
+    noteKey = None
     deets = ""
+
     #
     # Grab our temperature metrics from the storage
     #   database that was specified
@@ -103,7 +107,7 @@ def notificationTree(stats, notices, curProg, prevProg):
         #   to report, so set the details string empty
         deets = ""
 
-        return emailFlag, noteKey, deets
+    return emailFlag, noteKey, deets
 
 
 def checkJob(stats, pJob, notices):
