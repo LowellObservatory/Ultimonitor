@@ -92,7 +92,6 @@ def makeEmailUpdate(etype, jobid, jobname, strStat, emailConfig,
                                    filename="UltimakerSideView.jpg")
 
         if picam is not None:
-            outloc = "./"
             snapname = pch.capture.piCamCapture(picam, picam.savepath)
 
             if snapname is not None:

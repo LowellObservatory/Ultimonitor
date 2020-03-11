@@ -15,18 +15,8 @@ Further description.
 
 from __future__ import division, print_function, absolute_import
 
-from time import sleep
-from fractions import Fraction
-from datetime import datetime as dt
-
 from requests import get as httpget
 from requests.exceptions import ConnectionError as RCE
-
-try:
-    import picamera
-    from picamera import PiCamera, Color
-except ImportError:
-    picamera = None
 
 
 def grab_ultimaker(printerip):
