@@ -230,11 +230,15 @@ def statusCheck(printerip):
     if status == "printing":
         # Yay, we're printing!  Query some more!
         bedtemp = api.queryChecker(printerip, "printer/bed/temperature")
-        if bedtemp != {}:
-            ext1temps = headinfo['extruders'][0]['hotend']['temperature']
-            ext2temps = headinfo['extruders'][1]['hotend']['temperature']
-        else:
-            ext1temps = ""
+        try:
+            if bedtemp != {}:
+                ext1temps = headinfo['extruders'][0]['hotend']['temperature']
+                ext2temps = headinfo['extruders'][1]['hotend']['temperature']
+            else:
+                ext1temps = ""
+        except Exception as err:
+            print("Unexpected error:")
+            print(str(err))
 
         # Another multi-parameter check sequence
         printjob = api.queryChecker(printerip, "print_job")
