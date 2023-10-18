@@ -256,17 +256,13 @@ def monitorUltimaker(cDict, statusMap, statusColors, runner,
                 # Just take the first part of the UUID so it's not so long...
                 curJobID = stats['JobParameters']['UUID'].split("-")[0]
 
-                # Collect the temperature statistics, but only bother if
-                #   we're actually in progress. I set the threshold
-                #   to be > 0.5 so the extruders and bed *should* be
-                #   regulated already
+                # Only grab info when we're really printing.
+                #   'pre_print' is too early and duration will be missing
                 msg = None
                 deets = None
                 noteKey = None
                 emailFlag = False
 
-                # Only grab info when we're really printing.
-                #   'pre_print' is too early and duration will be missing
                 if actualStatus.lower() in ['printing',
                                             'pausing', 'paused', 'resuming',
                                             'post_print', 'wait_cleanup']:
